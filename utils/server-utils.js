@@ -37,12 +37,24 @@ export async function saveJob(job) {
   );
 }
 
+// Helper to wait
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 export async function getJob(id) {
-  try {
-    return JSON.parse(await readFile(join(JOBS_DIR, `${id}.json`), "utf-8"));
-  } catch {
-    return null;
+  const filePath = join(JOBS_DIR, `${id}.json`);
+
+  // Retry logic for potential race conditions
+  for (let i = 0; i < 3; i++) {
+    try {
+      if (existsSync(filePath)) {
+        return JSON.parse(await readFile(filePath, "utf-8"));
+      }
+    } catch {
+      // Ignore error and retry
+    }
+    if (i < 2) await sleep(100);
   }
+  return null;
 }
 
 export async function cancelJob(id) {

@@ -4,37 +4,31 @@ export const HistoryModal = ({ history, onClose, onClear }) => {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
-        className="absolute inset-0 bg-white/10 backdrop-blur-sm transition-opacity"
+        className="absolute inset-0 bg-white/20 backdrop-blur-md transition-opacity"
         onClick={onClose}
       />
 
-      <div className="glass-card w-full max-w-[340px] rounded-[2.5rem] p-6 relative animate-fade-in shadow-2xl backdrop-blur-3xl overflow-hidden noise border-white/40">
-        <div className="flex items-center justify-between mb-5 px-1">
-          <div className="flex items-center gap-3 text-gray-900">
-            <div className="bg-white/50 p-2 rounded-xl border border-white shadow-sm">
-              <ScrollText
-                size={16}
-                strokeWidth={2.5}
-                className="text-gray-600"
-              />
+      <div className="glass-panel w-full max-w-md rounded-[40px] p-8 relative animate-soft shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between mb-6 px-1">
+          <div className="flex items-center gap-4 text-gray-800">
+            <div className="bg-white/60 p-2.5 rounded-2xl shadow-sm ring-1 ring-white/50">
+              <ScrollText size={20} strokeWidth={2} className="text-gray-800" />
             </div>
-            <h2 className="text-[15px] font-bold tracking-tight uppercase pixel-font">
-              History
-            </h2>
+            <h2 className="text-xl font-medium tracking-tight">History</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 hover:bg-black/5 rounded-full transition-colors text-gray-400 hover:text-gray-900"
+            className="p-2 hover:bg-black/5 rounded-full transition-colors text-gray-400 hover:text-gray-900"
           >
-            <X size={18} strokeWidth={2.5} />
+            <X size={20} strokeWidth={2} />
           </button>
         </div>
 
-        <div className="max-h-[35vh] overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+        <div className="max-h-[45vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar -mr-2 pl-1 py-1">
           {history.length === 0 ? (
-            <div className="text-center py-10 flex flex-col items-center gap-3 opacity-30">
-              <ScrollText size={32} strokeWidth={1} className="text-gray-400" />
-              <p className="text-gray-500 text-[10px] font-bold uppercase tracking-[0.3em]">
+            <div className="text-center py-16 flex flex-col items-center gap-4 opacity-40">
+              <ScrollText size={48} strokeWidth={1} className="text-gray-400" />
+              <p className="text-gray-500 text-xs font-medium uppercase tracking-widest">
                 No Sessions Yet
               </p>
             </div>
@@ -42,32 +36,32 @@ export const HistoryModal = ({ history, onClose, onClear }) => {
             history.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-3 bg-white/30 hover:bg-white/60 rounded-2xl transition-all duration-300 group border border-white/20 hover:border-white/50"
+                className="flex items-center justify-between p-4 bg-white/40 hover:bg-white/60 rounded-[24px] transition-all duration-300 group ring-1 ring-white/40 hover:ring-white/80 hover:shadow-lg"
               >
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="w-10 h-10 bg-white/60 rounded-xl flex items-center justify-center border border-black/[0.03] flex-shrink-0 shadow-sm relative overflow-hidden group-hover:scale-105 transition-transform">
-                    <File size={16} strokeWidth={2} className="text-gray-400" />
+                <div className="flex items-center gap-4 overflow-hidden">
+                  <div className="w-12 h-12 bg-white/60 rounded-2xl flex items-center justify-center shadow-sm relative overflow-hidden transition-transform">
+                    <File size={20} strokeWidth={2} className="text-gray-900" />
                   </div>
                   <div className="min-w-0 flex flex-col justify-center">
-                    <p className="text-[12px] font-bold text-gray-800 truncate leading-none mb-1">
+                    <p className="text-sm font-medium text-gray-800 truncate leading-tight mb-1">
                       {item.fileName}
                     </p>
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter opacity-70">
+                    <p className="text-[11px] text-gray-500 font-medium opacity-70">
                       {(item.size / 1024 / 1024).toFixed(1)} MB • {item.date}
                     </p>
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-1.5 shrink-0 ml-2">
-                  <span className="text-[9px] font-black px-2 py-0.5 bg-black/5 text-gray-500 rounded-md uppercase tracking-widest border border-black/[0.02]">
+                <div className="flex flex-col items-end gap-2 shrink-0 ml-3">
+                  <span className="text-[10px] font-bold px-2.5 py-1 bg-white/50 text-gray-600 rounded-full uppercase tracking-wider">
                     {item.format}
                   </span>
                   {item.downloadUrl && (
                     <a
                       href={item.downloadUrl}
-                      className="p-1.5 bg-black hover:bg-black/80 text-white rounded-lg transition-all shadow-md active:scale-95 flex items-center justify-center translate-x-0.5"
+                      className="p-2 bg-gray-900 hover:bg-black text-white rounded-full transition-all shadow-md flex items-center justify-center"
                       title="Download"
                     >
-                      <Download size={12} strokeWidth={3} />
+                      <Download size={14} strokeWidth={2.5} />
                     </a>
                   )}
                 </div>
@@ -77,10 +71,10 @@ export const HistoryModal = ({ history, onClose, onClear }) => {
         </div>
 
         {history.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-black/[0.03] flex justify-center">
+          <div className="mt-8 pt-6 border-t border-black/[0.04] flex justify-center">
             <button
               onClick={onClear}
-              className="text-[10px] text-gray-400 hover:text-red-500 hover:bg-red-50/50 px-6 py-2 rounded-full transition-all font-bold uppercase tracking-[0.2em] border border-transparent hover:border-red-100"
+              className="text-xs text-gray-400 hover:text-red-500 hover:bg-red-50/50 px-6 py-2.5 rounded-full transition-all font-medium uppercase tracking-widest"
             >
               Clear History
             </button>

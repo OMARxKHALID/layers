@@ -164,42 +164,42 @@ export default function Home() {
   return (
     <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative">
       {isGlobalDragging && (
-        <div className="fixed inset-0 z-[2000] bg-white/20 backdrop-blur-xl border-[12px] border-blue-500/20 m-4 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-scale-in">
-          <div className="w-32 h-32 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
+        <div className="fixed inset-0 z-[2000] bg-white/60 backdrop-blur-md m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid shadow-2xl border border-white/50">
+          <div className="w-24 h-24 bg-white/70 rounded-full flex items-center justify-center mb-6 shadow-sm">
             <svg
-              width="64"
-              height="64"
+              width="48"
+              height="48"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="text-blue-500 animate-bounce"
+              className="text-gray-400 animate-bounce"
             >
               <path d="M12 5v14M5 12l7 7 7-7" />
             </svg>
           </div>
-          <p className="text-2xl font-black text-blue-600 uppercase tracking-[0.2em] pixel-font">
-            Drop to Morph
+          <p className="text-2xl font-light text-gray-800 tracking-tight">
+            Release to Morph
           </p>
         </div>
       )}
       <ToastContainer toasts={toasts} />
       <Header onReset={resetQueue} onOpenHistory={() => setShowHistory(true)} />
 
-      <main className="flex-grow flex flex-col items-center px-4 relative z-10 overflow-hidden">
-        <div className="w-full max-w-4xl mx-auto flex flex-col items-center flex-grow overflow-hidden pt-2">
+      <main className="flex-grow flex flex-col items-center px-4 relative z-10 overflow-hidden pb-6">
+        <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden pt-4">
           {appState === AppState.IDLE ? (
-            <div className="flex flex-col items-center justify-center h-full w-full animate-slide-up pb-20">
-              <div className="text-center mb-12">
-                <h1 className="text-8xl hero-title mb-2 tracking-tighter">
+            <div className="flex flex-col items-center justify-center h-full w-full animate-soft pb-24">
+              <div className="text-center mb-16 space-y-4">
+                <h1 className="text-7xl font-[family-name:var(--font-pixelify-sans)] font-normal tracking-wide text-balance text-gray-900 drop-shadow-sm">
                   Morpho
                 </h1>
-                <p className="text-lg text-gray-500 font-bold tracking-[0.2em] opacity-40 uppercase pixel-font">
-                  Elegant file conversion
+                <p className="text-lg text-gray-500 font-normal tracking-wide">
+                  Elegant file conversion.
                 </p>
-                <div className="mt-12">
+                <div className="pt-8">
                   <ActionPanel
                     queue={[]}
                     isProcessing={false}
@@ -213,20 +213,20 @@ export default function Home() {
               <DropZone onFilesSelect={handleFilesSelect} />
             </div>
           ) : (
-            <div className="glass-card w-full rounded-[2.5rem] p-6 flex flex-col h-[82vh] max-h-[850px] mb-4 animate-scale-in overflow-hidden border-white/50">
-              <div className="flex items-center justify-between mb-4 px-1 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <h2 className="text-[14px] font-black tracking-[0.3em] text-gray-900 uppercase pixel-font">
-                    {allSuccess ? "Finished" : "Queue"}
+            <div className="glass-panel w-full rounded-[40px] p-8 flex flex-col h-[85vh] max-h-[850px] mb-6 animate-liquid overflow-hidden relative">
+              <div className="flex items-center justify-between mb-6 flex-shrink-0 pl-1 pr-2">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-lg font-medium tracking-tight text-gray-800">
+                    {allSuccess ? "Completed" : "Queue"}
                   </h2>
-                  <span className="text-[11px] font-black px-2 py-0.5 bg-black/5 text-gray-400 rounded-lg border border-black/[0.02]">
+                  <span className="text-xs font-medium px-2.5 py-1 bg-black/5 text-gray-500 rounded-full">
                     {queue.length}
                   </span>
                 </div>
                 {!isProcessing && (
                   <button
                     onClick={() => addMoreInputRef.current?.click()}
-                    className="apple-button-secondary !text-[11px] !py-2 !px-5 font-bold uppercase tracking-widest bg-white/40 border-white/60 hover:bg-white/80"
+                    className="btn-minimal !py-2 !px-4 text-xs uppercase tracking-wider"
                   >
                     + Add More
                   </button>
@@ -244,19 +244,23 @@ export default function Home() {
                   }}
                 />
               </div>
-              <div className="flex-grow overflow-hidden no-scrollbar">
-                <QueueList
-                  queue={queue}
-                  onRemove={removeItem}
-                  onCancel={handleCancelItem}
-                  onFormatChange={(id, f) => updateItem(id, { format: f })}
-                  onSettingsChange={(id, s) => updateItem(id, { settings: s })}
-                  onNameChange={(id, n) => updateItem(id, { customName: n })}
-                  onCompare={(data) => setActiveCompare(data)}
-                  onConvert={handleConvertItem}
-                />
+              <div className="flex-grow overflow-hidden relative -mx-2 px-2">
+                <div className="absolute inset-0 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                  <QueueList
+                    queue={queue}
+                    onRemove={removeItem}
+                    onCancel={handleCancelItem}
+                    onFormatChange={(id, f) => updateItem(id, { format: f })}
+                    onSettingsChange={(id, s) =>
+                      updateItem(id, { settings: s })
+                    }
+                    onNameChange={(id, n) => updateItem(id, { customName: n })}
+                    onCompare={(data) => setActiveCompare(data)}
+                    onConvert={handleConvertItem}
+                  />
+                </div>
               </div>
-              <div className="flex-shrink-0 pt-4 border-t border-black/[0.03] mt-3">
+              <div className="flex-shrink-0 pt-6 mt-2 border-t border-black/[0.04]">
                 <ActionPanel
                   queue={queue}
                   isProcessing={isProcessing}

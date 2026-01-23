@@ -15,15 +15,15 @@ export const ActionPanel = ({
 
   if (allSuccess) {
     return (
-      <div className="flex justify-center gap-3 w-full">
+      <div className="flex justify-center gap-3 w-full animate-soft">
         <button
           onClick={onDownloadAll}
-          className="apple-button flex items-center gap-2 px-8"
+          className="btn-primary flex items-center gap-2 px-8"
         >
           <Archive size={16} />
           <span>Save All</span>
         </button>
-        <button onClick={onConvertMore} className="apple-button-secondary px-8">
+        <button onClick={onConvertMore} className="btn-minimal px-6">
           New Session
         </button>
       </div>
@@ -32,12 +32,12 @@ export const ActionPanel = ({
 
   if (queue.length > 0 && !isProcessing) {
     return (
-      <div className="flex justify-center w-full">
+      <div className="flex justify-center w-full animate-soft">
         <button
           onClick={onConvertAll}
-          className="apple-button px-10 py-3 text-sm flex items-center gap-2"
+          className="btn-primary px-10 py-3 text-sm flex items-center gap-2"
         >
-          <span>Transform Now</span>
+          <span>Morph Files</span>
           <PlayCircle size={18} />
         </button>
       </div>
@@ -46,45 +46,39 @@ export const ActionPanel = ({
 
   if (isProcessing) {
     return (
-      <div className="flex justify-center w-full">
+      <div className="flex justify-center w-full animate-soft">
         <button
           disabled
-          className="apple-button-secondary px-12 py-3.5 opacity-50 cursor-not-allowed animate-pulse"
+          className="btn-minimal px-12 py-3 opacity-60 cursor-not-allowed"
         >
-          Processing...
+          <span className="animate-pulse">Processing...</span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-wrap justify-center gap-3 w-full max-w-xl mx-auto">
+    <div className="flex flex-wrap justify-center gap-2 w-full max-w-lg mx-auto animate-soft">
       <button
         onClick={() => onQuickAction(ConversionFormat.TO_WEBP)}
-        className="apple-button-secondary flex items-center gap-2.5 py-2.5 px-6"
+        className="btn-minimal flex items-center gap-2 text-gray-900"
       >
-        <Image size={15} strokeWidth={2.5} className="text-blue-500" />
-        <span className="text-[10px] font-bold uppercase tracking-wider">
-          Image
-        </span>
+        <Image size={16} strokeWidth={2.5} />
+        <span className="font-medium">Image</span>
       </button>
       <button
         onClick={() => onQuickAction(ConversionFormat.TO_MP4)}
-        className="apple-button-secondary flex items-center gap-2.5 py-2.5 px-6"
+        className="btn-minimal flex items-center gap-2 text-gray-900"
       >
-        <Video size={15} strokeWidth={2.5} className="text-purple-500" />
-        <span className="text-[10px] font-bold uppercase tracking-wider">
-          Video
-        </span>
+        <Video size={16} strokeWidth={2.5} />
+        <span className="font-medium">Video</span>
       </button>
       <button
         onClick={() => onQuickAction(ConversionFormat.TO_MP3)}
-        className="apple-button-secondary flex items-center gap-2.5 py-2.5 px-6"
+        className="btn-minimal flex items-center gap-2 text-gray-900"
       >
-        <Music size={15} strokeWidth={2.5} className="text-red-500" />
-        <span className="text-[10px] font-bold uppercase tracking-wider">
-          Audio
-        </span>
+        <Music size={16} strokeWidth={2.5} />
+        <span className="font-medium">Audio</span>
       </button>
     </div>
   );

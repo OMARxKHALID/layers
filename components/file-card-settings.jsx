@@ -2,9 +2,9 @@ import React from "react";
 import { RotateCcw, FlipVertical, FlipHorizontal } from "lucide-react";
 
 export const SettingLabel = ({ children, extra }) => (
-  <div className="flex justify-between text-[9px] font-bold text-black/50 uppercase tracking-[0.1em] mb-1.5">
+  <div className="flex justify-between text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-2">
     <label>{children}</label>
-    {extra && <span className="text-black">{extra}</span>}
+    {extra && <span className="text-gray-900 font-semibold">{extra}</span>}
   </div>
 );
 
@@ -18,10 +18,10 @@ export const SettingButton = ({
   <button
     onClick={onClick}
     title={title}
-    className={`px-3 py-1.5 rounded-lg font-bold border transition-all text-[9px] ${
+    className={`px-3 py-1.5 rounded-lg font-medium border transition-all text-xs ${
       active
-        ? "bg-black text-white border-black shadow-sm"
-        : "bg-black/[0.02] text-gray-500 border-black/[0.02] hover:border-black/10"
+        ? "bg-gray-800 text-white border-transparent shadow-md"
+        : "bg-white/40 text-gray-600 border-white/20"
     } ${className}`}
   >
     {children}
@@ -44,10 +44,10 @@ export const NumericInput = ({
       placeholder={placeholder}
       value={value || ""}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-black/[0.03] border border-black/[0.05] rounded-xl pl-3 pr-8 py-2 text-[12px] font-bold focus:bg-white focus:border-black/20 outline-none transition-all placeholder:font-medium placeholder:text-black/20"
+      className="w-full bg-white/40 border border-white/20 rounded-xl pl-3 pr-8 py-2 text-xs font-medium focus:bg-white focus:border-black/5 outline-none transition-all placeholder:text-gray-400 text-gray-800 shadow-sm"
     />
     {unit && (
-      <span className="absolute right-3 top-2.5 text-[8px] text-black/30 font-bold uppercase pointer-events-none">
+      <span className="absolute right-3 top-2.5 text-[9px] text-gray-400 font-bold uppercase pointer-events-none">
         {unit}
       </span>
     )}
@@ -67,7 +67,7 @@ export const FileCardSettings = ({
   showMultiSize,
 }) => {
   return (
-    <div className="mt-3 pt-3 border-t border-black/[0.03] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 px-1 animate-scale-in origin-top">
+    <div className="mt-4 pt-4 border-t border-black/[0.04] grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 px-1 animate-soft origin-top transition-all duration-500 ease-out">
       {/* Left Column Settings */}
       <div className="space-y-4">
         {showQuality && (
@@ -218,7 +218,7 @@ export const FileCardSettings = ({
               step="10"
               value={item.settings.scale}
               onChange={(e) => updateSetting("scale", parseInt(e.target.value))}
-              className="w-full h-1 bg-black/[0.05] rounded-full appearance-none accent-black cursor-pointer"
+              className="w-full h-1.5 bg-gray-200 rounded-full appearance-none accent-gray-800 cursor-pointer"
             />
           </div>
         )}
@@ -238,7 +238,7 @@ export const FileCardSettings = ({
                 title="Rotate 90°"
               >
                 <div className="flex items-center gap-1">
-                  <RotateCcw size={12} />
+                  <RotateCcw size={14} />
                   {item.settings.rotation !== 0 && (
                     <span>{item.settings.rotation}°</span>
                   )}
@@ -249,14 +249,14 @@ export const FileCardSettings = ({
                 onClick={() => updateSetting("flip", !item.settings.flip)}
                 title="Flip Vertical"
               >
-                <FlipVertical size={12} />
+                <FlipVertical size={14} />
               </SettingButton>
               <SettingButton
                 active={item.settings.flop}
                 onClick={() => updateSetting("flop", !item.settings.flop)}
                 title="Flip Horizontal"
               >
-                <FlipHorizontal size={12} />
+                <FlipHorizontal size={14} />
               </SettingButton>
               <SettingButton
                 active={item.settings.grayscale}
@@ -271,12 +271,12 @@ export const FileCardSettings = ({
         )}
 
         {showMultiSize && (
-          <div className="flex items-center justify-between p-2 bg-black/[0.02] rounded-xl border border-black/[0.03]">
+          <div className="flex items-center justify-between p-3 bg-white/40 rounded-xl border border-white/20">
             <div className="flex flex-col">
-              <label className="text-[9px] font-bold text-gray-900 uppercase tracking-tight">
+              <label className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">
                 Multi-Size Pack
               </label>
-              <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+              <span className="text-[9px] text-gray-400 font-medium tracking-wide mt-0.5">
                 S / M / L Exports
               </span>
             </div>
@@ -284,10 +284,10 @@ export const FileCardSettings = ({
               onClick={() =>
                 updateSetting("multiSize", !item.settings.multiSize)
               }
-              className={`w-10 h-5.5 rounded-full relative transition-all ${item.settings.multiSize ? "bg-black" : "bg-black/10"}`}
+              className={`w-10 h-6 rounded-full relative transition-all ${item.settings.multiSize ? "bg-gray-800" : "bg-gray-200"}`}
             >
               <div
-                className={`absolute top-1 left-1 bg-white w-3.5 h-3.5 rounded-full shadow-sm transition-transform ${item.settings.multiSize ? "translate-x-4.5" : ""}`}
+                className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform ${item.settings.multiSize ? "translate-x-4" : ""}`}
               />
             </button>
           </div>
