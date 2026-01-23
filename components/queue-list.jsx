@@ -9,6 +9,7 @@ export const QueueList = ({
   onSettingsChange,
   onNameChange,
   onCompare,
+  onConvert,
 }) => {
   return (
     <div className="h-full overflow-y-auto px-2 pr-4 custom-scrollbar flex flex-col gap-3 pb-6">
@@ -22,6 +23,7 @@ export const QueueList = ({
           onSettingsChange={onSettingsChange}
           onNameChange={onNameChange}
           onCompare={onCompare}
+          onConvert={onConvert}
         />
       ))}
     </div>

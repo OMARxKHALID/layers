@@ -19,18 +19,10 @@ export const DropZone = ({ onFilesSelect, disabled }) => {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault();
-      setIsDragging(false);
-      if (disabled) return;
-
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        onFilesSelect(Array.from(e.dataTransfer.files));
-      }
-    },
-    [onFilesSelect, disabled],
-  );
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
 
   const handleFileInput = useCallback(
     (e) => {

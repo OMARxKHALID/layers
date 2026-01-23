@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { readFile } from "fs/promises";
+import { createReadStream } from "fs";
+import { stat } from "fs/promises";
+import { Readable } from "stream";
 import { getJob, ensureDirs } from "@/utils/server-utils";
 
 export async function GET(request, { params }) {
@@ -18,26 +20,40 @@ export async function GET(request, { params }) {
     const downloadName =
       requestedName || `morpho_${id.slice(0, 8)}.${job.targetExt}`;
 
-    const fileBuffer = await readFile(job.outputFile);
-    const headers = {
-      "Content-Type":
-        {
-          jpg: "image/jpeg",
-          jpeg: "image/jpeg",
-          png: "image/png",
-          webp: "image/webp",
-          gif: "image/gif",
-          avif: "image/avif",
-        }[job.targetExt] || "application/octet-stream",
-    };
+    const { size } = await stat(job.outputFile);
+    const nodeStream = createReadStream(job.outputFile);
+
+    // Convert Node stream to Web stream using Node 18+ API
+    const webStream = Readable.toWeb(nodeStream);
+
+    const contentType =
+      {
+        jpg: "image/jpeg",
+        jpeg: "image/jpeg",
+        png: "image/png",
+        webp: "image/webp",
+        gif: "image/gif",
+        avif: "image/avif",
+        mp4: "video/mp4",
+        webm: "video/webm",
+        mp3: "audio/mpeg",
+      }[job.targetExt.toLowerCase()] || "application/octet-stream";
+
+    const headers = new Headers({
+      "Content-Length": size.toString(),
+      "Content-Type": contentType,
+    });
 
     if (!isPreview) {
-      headers["Content-Disposition"] =
-        `attachment; filename="${encodeURIComponent(downloadName)}"`;
+      headers.set(
+        "Content-Disposition",
+        `attachment; filename="${encodeURIComponent(downloadName)}"`,
+      );
     }
 
-    return new NextResponse(fileBuffer, { headers });
+    return new NextResponse(webStream, { headers });
   } catch (error) {
+    console.error("File download error:", error);
     return NextResponse.json(
       { error: "File missing on server" },
       { status: 500 },

@@ -17,6 +17,11 @@ let lastCleanup = 0;
 // Store active processes for cancellation
 const activeProcesses = new Map();
 
+// --- Queue Management ---
+const jobQueue = [];
+let activeJobCount = 0;
+const MAX_CONCURRENT_JOBS = 3;
+
 export async function ensureDirs() {
   await Promise.all([
     !existsSync(UPLOAD_DIR) && mkdir(UPLOAD_DIR, { recursive: true }),
@@ -27,7 +32,12 @@ export async function ensureDirs() {
 }
 
 export async function saveJob(job) {
-  await writeFile(join(JOBS_DIR, `${job.id}.json`), JSON.stringify(job));
+  // Don't save transient internal properties like onCommand
+  const { onCommand, ...serializableJob } = job;
+  await writeFile(
+    join(JOBS_DIR, `${job.id}.json`),
+    JSON.stringify(serializableJob),
+  );
 }
 
 export async function getJob(id) {
@@ -39,9 +49,18 @@ export async function getJob(id) {
 }
 
 export async function cancelJob(id) {
+  // Remove from queue if not started
+  const queueIndex = jobQueue.findIndex((j) => j.job.id === id);
+  if (queueIndex !== -1) {
+    const { job } = jobQueue.splice(queueIndex, 1)[0];
+    job.status = "cancelled";
+    await saveJob(job);
+    return true;
+  }
+
   const proc = activeProcesses.get(id);
   if (proc) {
-    if (proc.kill) proc.kill("SIGKILL");
+    if (proc.kill) proc.kill("SIGTERM");
     else if (proc.abort) proc.abort();
     activeProcesses.delete(id);
     return true;
@@ -55,16 +74,18 @@ async function runCleanup() {
 
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
-    const files = await readdir(dir);
-    await Promise.all(
-      files.map(async (file) => {
-        try {
-          const path = join(dir, file);
-          const { mtimeMs } = await stat(path);
-          if (now - mtimeMs > CLEANUP_MAX_AGE) await unlink(path);
-        } catch {}
-      }),
-    );
+    try {
+      const files = await readdir(dir);
+      await Promise.all(
+        files.map(async (file) => {
+          try {
+            const path = join(dir, file);
+            const { mtimeMs } = await stat(path);
+            if (now - mtimeMs > CLEANUP_MAX_AGE) await unlink(path);
+          } catch {}
+        }),
+      );
+    } catch {}
   }
   lastCleanup = now;
 }
@@ -76,6 +97,16 @@ function scheduleCleanup() {
 }
 
 export async function processJob(job, settings) {
+  jobQueue.push({ job, settings });
+  triggerNextJob();
+}
+
+async function triggerNextJob() {
+  if (activeJobCount >= MAX_CONCURRENT_JOBS || jobQueue.length === 0) return;
+
+  activeJobCount++;
+  const { job, settings } = jobQueue.shift();
+
   try {
     job.status = "processing";
     job.progress = 5;
@@ -134,5 +165,8 @@ export async function processJob(job, settings) {
     job.status = "error";
     job.error = error.message;
     await saveJob(job);
+  } finally {
+    activeJobCount--;
+    triggerNextJob();
   }
 }

@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { AppState, CONVERSION_OPTIONS } from "@/lib/config";
 import { getMimeType } from "@/utils/file-utils";
+import { getFileMetadata, suggestFormat } from "@/utils/media-utils";
 import { useZipDownload } from "@/hooks/useZipDownload";
+import { useToasts } from "@/hooks/useToasts";
+import { useQueue } from "@/hooks/useQueue";
+import { useConversion } from "@/hooks/useConversion";
+import { useGlobalDrag } from "@/hooks/useGlobalDrag";
 
 import { Header } from "@/components/header";
 import { DropZone } from "@/components/drop-zone";
@@ -14,313 +19,112 @@ import { ToastContainer } from "@/components/toast";
 import { CompareView } from "@/components/compare-view";
 
 export default function Home() {
-  const [appState, setAppState] = useState(AppState.IDLE);
-  const [queue, setQueue] = useState([]);
-  const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [toasts, setToasts] = useState([]);
   const [activeCompare, setActiveCompare] = useState(null);
 
   const pendingActionFormat = useRef(null);
   const addMoreInputRef = useRef(null);
 
-  const addToast = useCallback((message, type = "info") => {
-    const id = crypto.randomUUID();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
-  }, []);
+  // 1. Toast Logic
+  const { toasts, addToast } = useToasts();
 
-  useEffect(() => {
-    const stored = localStorage.getItem("morpho_history");
-    if (stored) setHistory(JSON.parse(stored));
-  }, []);
+  // 2. Queue & History Logic
+  const {
+    appState,
+    setAppState,
+    queue,
+    setQueue,
+    history,
+    addToHistory,
+    updateItem,
+    removeItem,
+    resetQueue,
+    clearHistory,
+  } = useQueue(addToast);
 
-  const addToHistory = (item) => {
-    const targetExt =
-      item.availableOptions.find((o) => o.id === item.format)?.targetExt ||
-      "file";
-    const displayName = item.customName || item.file.name;
-    const nameStem = displayName.split(".")[0];
+  // 3. File Selection Logic
+  const handleFilesSelect = useCallback(
+    async (files) => {
+      const invalidFiles = [];
+      const validItems = [];
 
-    const newEntry = {
-      id: crypto.randomUUID(),
-      fileName: `${nameStem}.${targetExt}`,
-      format: targetExt,
-      date: new Date().toLocaleDateString(),
-      size: item.file.size,
-      downloadUrl: item.downloadUrl,
-    };
+      await Promise.all(
+        files.map(async (file) => {
+          const mime = getMimeType(file);
+          const options = CONVERSION_OPTIONS.filter((opt) =>
+            opt.accepts.includes(mime),
+          );
 
-    setHistory((prev) => {
-      const updated = [newEntry, ...prev].slice(0, 20);
-      localStorage.setItem("morpho_history", JSON.stringify(updated));
-      return updated;
-    });
-  };
-
-  const getFileMetadata = (file) => {
-    return new Promise((resolve) => {
-      if (!file.type.startsWith("image/")) return resolve({});
-      const img = new Image();
-      img.onload = () => {
-        resolve({ width: img.width, height: img.height });
-        URL.revokeObjectURL(img.src);
-      };
-      img.onerror = () => resolve({});
-      img.src = URL.createObjectURL(file);
-    });
-  };
-
-  const suggestFormat = (mime, file) => {
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    if (mime.startsWith("image/")) {
-      if (ext === "webp") return "to-jpg"; // Already webp, suggest jpg
-      return "to-webp";
-    }
-    if (mime.startsWith("video/")) {
-      if (ext === "mp4") return "to-webm"; // Already mp4, suggest webm
-      return "to-mp4";
-    }
-    if (mime.startsWith("audio/")) {
-      if (ext === "mp3") return "to-wav"; // Already mp3, suggest wav
-      return "to-mp3";
-    }
-    return null;
-  };
-
-  const handleFilesSelect = async (files) => {
-    const invalidFiles = [];
-    const validItems = [];
-
-    await Promise.all(
-      files.map(async (file) => {
-        const mime = getMimeType(file);
-        const options = CONVERSION_OPTIONS.filter((opt) =>
-          opt.accepts.includes(mime),
-        );
-
-        if (options.length === 0) {
-          invalidFiles.push(file);
-          return;
-        }
-
-        const format =
-          pendingActionFormat.current ||
-          suggestFormat(mime, file) ||
-          options[0].id;
-
-        const metadata = await getFileMetadata(file);
-
-        validItems.push({
-          id: crypto.randomUUID(),
-          jobId: null,
-          file,
-          status: "idle",
-          progress: 0,
-          format,
-          availableOptions: options,
-          downloadUrl: null,
-          customName: file.name,
-          metadata,
-          settings: {
-            quality: 100,
-            grayscale: false,
-            rotation: 0,
-            scale: 100,
-            aspectRatio: "original",
-            flip: false,
-            flop: false,
-            multiSize: false,
-            fps: null,
-            audioBitrate: "192k",
-            frameOffset: 0,
-          },
-        });
-      }),
-    );
-
-    if (invalidFiles.length > 0) {
-      addToast(
-        `${invalidFiles.length} file(s) skipped (unsupported or too large)`,
-        "error",
-      );
-    }
-
-    if (validItems.length > 0) {
-      setQueue((prev) => [...prev, ...validItems]);
-      setAppState(AppState.QUEUE_ACTIVE);
-      addToast(`${validItems.length} file(s) added`);
-    }
-
-    pendingActionFormat.current = null;
-  };
-
-  const updateItem = (id, updates) => {
-    setQueue((prev) =>
-      prev.map((item) => {
-        if (item.id !== id) return item;
-        const needsReset =
-          updates.format || updates.settings || updates.customName;
-        return {
-          ...item,
-          ...updates,
-          ...(needsReset && {
-            status: "idle",
-            errorMsg: undefined,
-            progress: 0,
-          }),
-        };
-      }),
-    );
-  };
-
-  const pollJobStatus = (jobId, itemId) => {
-    return new Promise((resolve, reject) => {
-      const poll = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/jobs/${jobId}`);
-          const data = await res.json();
-
-          if (data.status === "processing") {
-            updateItem(itemId, { progress: Math.max(10, data.progress || 10) });
-          } else if (data.status === "done") {
-            clearInterval(poll);
-
-            let resultItem = null;
-            setQueue((q) => {
-              const item = q.find((i) => i.id === itemId);
-              if (!item) return q;
-
-              const targetExt =
-                data.targetExt ||
-                item.availableOptions.find((o) => o.id === item.format)
-                  ?.targetExt ||
-                "file";
-
-              const parts = item.customName.split(".");
-              const nameStem =
-                parts.length > 1
-                  ? parts.slice(0, -1).join(".")
-                  : item.customName;
-              const newName = `${nameStem}.${targetExt}`;
-              const downloadUrl = `${data.downloadUrl}?filename=${encodeURIComponent(newName)}`;
-
-              resultItem = {
-                ...item,
-                status: "success",
-                progress: 100,
-                downloadUrl,
-                customName: newName,
-              };
-
-              addToast(`${newName} ready!`, "success");
-              addToHistory(resultItem);
-
-              return q.map((i) => (i.id === itemId ? resultItem : i));
-            });
-
-            // Wait for state update to settle if needed, or just return result
-            resolve(resultItem);
-          } else if (data.status === "cancelled") {
-            clearInterval(poll);
-            updateItem(itemId, { status: "idle", progress: 0 });
-            addToast("Conversion cancelled", "info");
-            resolve(null);
-          } else if (data.status === "error") {
-            clearInterval(poll);
-            updateItem(itemId, { status: "error", errorMsg: data.error });
-            addToast(`Failed: ${data.error}`, "error");
-            reject(new Error(data.error));
+          if (options.length === 0) {
+            invalidFiles.push(file);
+            return;
           }
-        } catch (e) {
-          clearInterval(poll);
-          reject(e);
-        }
-      }, 1000);
-    });
-  };
 
-  const handleConvertAll = async () => {
-    const itemsToProcess = queue.filter(
-      (q) => q.status === "idle" || q.status === "error",
-    );
-    if (!itemsToProcess.length) return;
+          const format =
+            pendingActionFormat.current ||
+            suggestFormat(mime, file) ||
+            options[0].id;
 
-    setIsProcessing(true);
+          const metadata = await getFileMetadata(file);
 
-    for (const item of itemsToProcess) {
-      if (!item.format) continue;
+          validItems.push({
+            id: crypto.randomUUID(),
+            jobId: null,
+            file,
+            status: "idle",
+            progress: 0,
+            format,
+            availableOptions: options,
+            downloadUrl: null,
+            customName: file.name,
+            metadata,
+            settings: {
+              quality: 100,
+              grayscale: false,
+              rotation: 0,
+              scale: 100,
+              aspectRatio: "original",
+              flip: false,
+              flop: false,
+              multiSize: false,
+              fps: null,
+              audioBitrate: "192k",
+              frameOffset: 0,
+            },
+          });
+        }),
+      );
 
-      // Ensure we have the latest item state from the queue
-      const currentItem = await new Promise((resolve) => {
-        setQueue((q) => {
-          const found = q.find((i) => i.id === item.id);
-          resolve(found);
-          return q;
-        });
-      });
-
-      if (!currentItem || currentItem.status === "success") continue;
-
-      updateItem(currentItem.id, {
-        status: "uploading",
-        progress: 5,
-        errorMsg: undefined,
-      });
-
-      try {
-        const formData = new FormData();
-        formData.append("file", currentItem.file);
-        formData.append("conversionType", currentItem.format);
-        formData.append("settings", JSON.stringify(currentItem.settings));
-
-        const res = await fetch("/api/convert", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || "Upload failed");
-        }
-
-        const { jobId } = await res.json();
-        updateItem(currentItem.id, {
-          jobId,
-          status: "converting",
-          progress: 10,
-        });
-
-        // Await the job completion before starting the next one
-        await pollJobStatus(jobId, currentItem.id);
-      } catch (err) {
-        console.error("Conversion failed for", currentItem.id, err);
-        updateItem(currentItem.id, { status: "error", errorMsg: err.message });
-        // We continue to next item even if one fails
+      if (invalidFiles.length > 0) {
+        addToast(
+          `${invalidFiles.length} file(s) skipped (unsupported or too large)`,
+          "error",
+        );
       }
-    }
 
-    setIsProcessing(false);
-  };
+      if (validItems.length > 0) {
+        setQueue((prev) => [...prev, ...validItems]);
+        setAppState(AppState.QUEUE_ACTIVE);
+        addToast(`${validItems.length} file(s) added`);
+      }
 
-  const handleCancelItem = async (itemId) => {
-    const item = queue.find((i) => i.id === itemId);
-    if (!item || !item.jobId) {
-      updateItem(itemId, { status: "idle", progress: 0 });
-      return;
-    }
+      pendingActionFormat.current = null;
+    },
+    [addToast, setQueue, setAppState],
+  );
 
-    try {
-      await fetch(`/api/jobs/${item.jobId}/cancel`, { method: "POST" });
-      updateItem(itemId, { status: "idle", progress: 0, jobId: null });
-    } catch (e) {
-      addToast("Cancel failed", "error");
-    }
-  };
+  // 4. Conversion & Processing Logic
+  const {
+    isProcessing,
+    handleConvertItem,
+    handleConvertAll,
+    handleCancelItem,
+  } = useConversion(queue, updateItem, addToast, addToHistory);
 
+  // 5. Drag & Drop Logic
+  const { isGlobalDragging } = useGlobalDrag(handleFilesSelect);
+
+  // 6. Bulk Actions Logic
   const { downloadAsZip, progress: zipProgress } = useZipDownload({
     zipFileName: "morpho_bundle.zip",
   });
@@ -331,13 +135,10 @@ export default function Home() {
 
     addToast("Creating archive...");
 
-    const zipItems = items.map((item) => {
-      // Name is already updated with extension in the poll completion
-      return {
-        fileName: item.customName,
-        downloadUrl: item.downloadUrl,
-      };
-    });
+    const zipItems = items.map((item) => ({
+      fileName: item.customName,
+      downloadUrl: item.downloadUrl,
+    }));
 
     try {
       await downloadAsZip(zipItems);
@@ -351,21 +152,34 @@ export default function Home() {
     }
   };
 
-  const handleReset = () => {
-    setQueue([]);
-    setAppState(AppState.IDLE);
-    setIsProcessing(false);
-  };
-
   const allSuccess = queue.length && queue.every((q) => q.status === "success");
 
   return (
-    <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden">
+    <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative">
+      {isGlobalDragging && (
+        <div className="fixed inset-0 z-[2000] bg-white/20 backdrop-blur-xl border-[12px] border-blue-500/20 m-4 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-scale-in">
+          <div className="w-32 h-32 bg-blue-500/10 rounded-full flex items-center justify-center mb-6">
+            <svg
+              width="64"
+              height="64"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-blue-500 animate-bounce"
+            >
+              <path d="M12 5v14M5 12l7 7 7-7" />
+            </svg>
+          </div>
+          <p className="text-2xl font-black text-blue-600 uppercase tracking-[0.2em] pixel-font">
+            Drop to Morph
+          </p>
+        </div>
+      )}
       <ToastContainer toasts={toasts} />
-      <Header
-        onReset={handleReset}
-        onOpenHistory={() => setShowHistory(true)}
-      />
+      <Header onReset={resetQueue} onOpenHistory={() => setShowHistory(true)} />
 
       <main className="flex-grow flex flex-col items-center px-4 relative z-10 overflow-hidden">
         <div className="w-full max-w-4xl mx-auto flex flex-col items-center flex-grow overflow-hidden pt-2">
@@ -426,16 +240,13 @@ export default function Home() {
               <div className="flex-grow overflow-hidden no-scrollbar">
                 <QueueList
                   queue={queue}
-                  onRemove={(id) => {
-                    const n = queue.filter((i) => i.id !== id);
-                    setQueue(n);
-                    if (!n.length) handleReset();
-                  }}
+                  onRemove={removeItem}
                   onCancel={handleCancelItem}
                   onFormatChange={(id, f) => updateItem(id, { format: f })}
                   onSettingsChange={(id, s) => updateItem(id, { settings: s })}
                   onNameChange={(id, n) => updateItem(id, { customName: n })}
                   onCompare={(data) => setActiveCompare(data)}
+                  onConvert={handleConvertItem}
                 />
               </div>
               <div className="flex-shrink-0 pt-4 border-t border-black/[0.03] mt-3">
@@ -443,7 +254,7 @@ export default function Home() {
                   queue={queue}
                   isProcessing={isProcessing}
                   onConvertAll={handleConvertAll}
-                  onConvertMore={handleReset}
+                  onConvertMore={resetQueue}
                   onDownloadAll={handleDownloadAll}
                 />
               </div>
@@ -456,10 +267,7 @@ export default function Home() {
         <HistoryModal
           history={history}
           onClose={() => setShowHistory(false)}
-          onClear={() => {
-            setHistory([]);
-            localStorage.removeItem("morpho_history");
-          }}
+          onClear={clearHistory}
         />
       )}
 
