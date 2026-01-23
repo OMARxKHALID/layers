@@ -5,7 +5,7 @@ import { tmpdir } from "os";
 import JSZip from "jszip";
 import { ConverterFactory } from "../lib/converters";
 
-export const TEMP_DIR = join(tmpdir(), "morpho_data");
+export const TEMP_DIR = join(tmpdir(), "layers_data");
 export const UPLOAD_DIR = join(TEMP_DIR, "uploads");
 export const OUTPUT_DIR = join(TEMP_DIR, "outputs");
 export const JOBS_DIR = join(TEMP_DIR, "jobs");
@@ -42,12 +42,17 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export async function getJob(id) {
   const filePath = join(JOBS_DIR, `${id}.json`);
+  const legacyFilePath = join(tmpdir(), "morpho_data", "jobs", `${id}.json`);
 
   // Retry logic for potential race conditions
   for (let i = 0; i < 3; i++) {
     try {
       if (existsSync(filePath)) {
         return JSON.parse(await readFile(filePath, "utf-8"));
+      }
+      // Fallback for transition period
+      if (existsSync(legacyFilePath)) {
+        return JSON.parse(await readFile(legacyFilePath, "utf-8"));
       }
     } catch {
       // Ignore error and retry

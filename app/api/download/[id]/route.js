@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
     const requestedName = url.searchParams.get("filename");
     const isPreview = url.searchParams.has("preview");
     const downloadName =
-      requestedName || `morpho_${id.slice(0, 8)}.${job.targetExt}`;
+      requestedName || `layers_${id.slice(0, 8)}.${job.targetExt}`;
 
     const { size } = await stat(job.outputFile);
     const nodeStream = createReadStream(job.outputFile);

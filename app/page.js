@@ -15,6 +15,7 @@ import { DropZone } from "@/components/drop-zone";
 import { QueueList } from "@/components/queue-list";
 import { ActionPanel } from "@/components/action-panel";
 import { ToastContainer } from "@/components/toast";
+import { Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 
 const HistoryModal = dynamic(() =>
@@ -132,7 +133,7 @@ export default function Home() {
 
   // 6. Bulk Actions Logic
   const { downloadAsZip, progress: zipProgress } = useZipDownload({
-    zipFileName: "morpho_bundle.zip",
+    zipFileName: "Layers_bundle.zip",
   });
 
   const handleDownloadAll = async () => {
@@ -148,9 +149,9 @@ export default function Home() {
     }));
 
     try {
-      await downloadAsZip(zipItems);
-      if (zipProgress.status === "error") {
-        addToast(`Archive failed: ${zipProgress.error}`, "error");
+      const result = await downloadAsZip(zipItems);
+      if (result.status === "error") {
+        addToast(`Archive failed: ${result.error}`, "error");
       } else {
         addToast("Download started", "success");
       }
@@ -162,71 +163,50 @@ export default function Home() {
   const allSuccess = queue.length && queue.every((q) => q.status === "success");
 
   return (
-    <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative">
+    <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative selection:bg-black/5">
       {isGlobalDragging && (
-        <div className="fixed inset-0 z-[2000] bg-white/60 backdrop-blur-md m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid shadow-2xl border border-white/50">
-          <div className="w-24 h-24 bg-white/70 rounded-full flex items-center justify-center mb-6 shadow-sm">
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-gray-400 animate-bounce"
-            >
-              <path d="M12 5v14M5 12l7 7 7-7" />
-            </svg>
+        <div className="fixed inset-0 z-[2000] bg-white/40 backdrop-blur-xl m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid border border-white/40">
+          <div className="w-20 h-20 bg-white/60 rounded-full flex items-center justify-center mb-6 border border-white/60">
+            <Plus size={40} className="text-gray-800" strokeWidth={1.5} />
           </div>
-          <p className="text-2xl font-light text-gray-800 tracking-tight">
-            Release to Morph
+          <p className="text-xl md:text-2xl font-medium text-gray-800 tracking-tight">
+            Drop to Transform
           </p>
         </div>
       )}
       <ToastContainer toasts={toasts} />
       <Header onReset={resetQueue} onOpenHistory={() => setShowHistory(true)} />
 
-      <main className="flex-grow flex flex-col items-center px-4 relative z-10 overflow-hidden pb-6">
-        <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden pt-4">
+      <main className="flex-grow flex flex-col items-center px-4 md:px-6 relative z-10 overflow-hidden pb-6">
+        <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden">
           {appState === AppState.IDLE ? (
-            <div className="flex flex-col items-center justify-center h-full w-full animate-soft pb-24">
-              <div className="text-center mb-16 space-y-4">
-                <h1 className="text-7xl font-[family-name:var(--font-pixelify-sans)] font-normal tracking-wide text-balance text-gray-900 drop-shadow-sm">
-                  Morpho
+            <div className="flex flex-col items-center justify-start h-full w-full animate-soft pb-8 pt-12">
+              <div className="text-center mb-8 space-y-2">
+                <h1 className="text-5xl md:text-8xl font-[family-name:var(--font-pixelify-sans)] font-normal tracking-wide text-balance ">
+                  Layers
                 </h1>
-                <p className="text-lg text-gray-500 font-normal tracking-wide">
-                  Elegant file conversion.
+                <p className="text-lg text-gray-500 font-light tracking-wide max-w-md mx-auto">
+                  The ultimate media conversion tool. Fast, private, and
+                  high-quality.
                 </p>
-                <div className="pt-8">
-                  <ActionPanel
-                    queue={[]}
-                    isProcessing={false}
-                    onQuickAction={(fmt) => {
-                      pendingActionFormat.current = fmt;
-                      document.getElementById("file-upload")?.click();
-                    }}
-                  />
-                </div>
               </div>
               <DropZone onFilesSelect={handleFilesSelect} />
             </div>
           ) : (
-            <div className="glass-panel w-full rounded-[40px] p-8 flex flex-col h-[85vh] max-h-[850px] mb-6 animate-liquid overflow-hidden relative">
+            <div className="glass-panel w-full rounded-[30px] md:rounded-[40px] p-4 md:p-8 flex flex-col h-[85vh] max-h-[850px] mb-6 animate-liquid overflow-hidden relative">
               <div className="flex items-center justify-between mb-6 flex-shrink-0 pl-1 pr-2">
                 <div className="flex items-center gap-4">
-                  <h2 className="text-lg font-medium tracking-tight text-gray-800">
+                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
                     {allSuccess ? "Completed" : "Queue"}
                   </h2>
-                  <span className="text-xs font-medium px-2.5 py-1 bg-black/5 text-gray-500 rounded-full">
+                  <span className="text-[10px] md:text-xs font-bold px-2 py-0.5 bg-black/5 text-gray-500 rounded-full">
                     {queue.length}
                   </span>
                 </div>
                 {!isProcessing && (
                   <button
                     onClick={() => addMoreInputRef.current?.click()}
-                    className="btn-minimal !py-2 !px-4 text-xs uppercase tracking-wider"
+                    className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-black transition-colors px-5 py-2 hover:bg-white/50 rounded-full border border-black/5"
                   >
                     + Add More
                   </button>

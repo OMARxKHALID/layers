@@ -10,8 +10,8 @@ export const CompareView = ({ original, converted, onClose }) => {
         {/* Top Navigation Bar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-white/40 rounded-2xl flex items-center justify-center shadow-sm border border-white/50">
-              <Columns size={20} className="text-gray-600" />
+            <div className="w-10 h-10 bg-white/40 rounded-2xl flex items-center justify-center border border-white/50">
+              <Columns size={20} className="text-gray-800" />
             </div>
             <div>
               <h2 className="text-gray-800 text-sm font-medium uppercase tracking-widest">
@@ -28,7 +28,7 @@ export const CompareView = ({ original, converted, onClose }) => {
 
           <button
             onClick={onClose}
-            className="w-10 h-10 bg-white/40 hover:bg-white/60 text-gray-800 rounded-full flex items-center justify-center transition-all shadow-sm ring-1 ring-white/50 active:scale-95"
+            className="w-10 h-10 bg-white/40 hover:bg-white/60 text-gray-800 rounded-full flex items-center justify-center transition-all ring-1 ring-white/50 active:scale-95"
           >
             <X size={20} />
           </button>
@@ -63,7 +63,7 @@ export const CompareView = ({ original, converted, onClose }) => {
                 Output
               </span>
               <div className="h-[1px] flex-grow bg-black/[0.03]" />
-              <span className="text-[10px] font-bold text-white bg-gray-900 px-4 py-1 rounded-full shadow-lg">
+              <span className="text-[10px] font-bold text-white bg-gray-900 px-4 py-1 rounded-full">
                 Converted
               </span>
             </div>

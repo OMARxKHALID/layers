@@ -16,21 +16,21 @@ export const ToastContainer = ({ toasts }) => {
           key={toast.id}
           className={`
             pointer-events-auto
-            flex items-center gap-3 px-6 py-3 rounded-full border backdrop-blur-3xl shadow-[0_12px_48px_rgba(0,0,0,0.12)] noise
+            flex items-center gap-3 px-6 py-3 rounded-full border backdrop-blur-3xl noise
             animate-fade-in transition-all duration-500
             ${
               toast.type === "success"
-                ? "bg-white/95 border-green-200/40 text-gray-900"
+                ? "bg-white/40 border-green-200/50 text-gray-900"
                 : ""
             }
             ${
               toast.type === "error"
-                ? "bg-white/95 border-red-200/40 text-red-600"
+                ? "bg-white/40 border-red-200/50 text-red-600"
                 : ""
             }
             ${
               toast.type === "info"
-                ? "bg-white/95 border-white/40 text-gray-900"
+                ? "bg-white/40 border-white/60 text-gray-900"
                 : ""
             }
           `}
@@ -39,21 +39,21 @@ export const ToastContainer = ({ toasts }) => {
             <CheckCircle
               size={16}
               strokeWidth={3}
-              className="text-green-500 flex-shrink-0"
+              className="text-green-600 flex-shrink-0"
             />
           )}
           {toast.type === "error" && (
             <AlertCircle
               size={16}
               strokeWidth={3}
-              className="text-red-500 flex-shrink-0"
+              className="text-red-600 flex-shrink-0"
             />
           )}
           {toast.type === "info" && (
             <Info
               size={16}
               strokeWidth={3}
-              className="text-blue-500 flex-shrink-0"
+              className="text-blue-600 flex-shrink-0"
             />
           )}
           <span className="text-[12px] font-bold tracking-tight whitespace-nowrap">

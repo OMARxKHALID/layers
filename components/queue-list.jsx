@@ -12,7 +12,7 @@ export const QueueList = ({
   onConvert,
 }) => {
   return (
-    <div className="h-full overflow-y-auto px-2 pr-4 custom-scrollbar flex flex-col gap-3 pb-6">
+    <div className="h-full overflow-y-auto px-2 pr-4 custom-scrollbar flex flex-col gap-2 pb-6">
       {queue.map((item) => (
         <FileCard
           key={item.id}

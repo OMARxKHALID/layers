@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 
 export function useZipDownload(options = {}) {
-  const { zipFileName = "morpho_bundle.zip" } = options;
+  const { zipFileName = "layers_bundle.zip" } = options;
 
   const [progress, setProgress] = useState({
     status: "idle",
@@ -38,10 +38,21 @@ export function useZipDownload(options = {}) {
         });
 
         if (!response.ok) {
-          throw new Error("Failed to generate zip");
+          let errorMsg = "Failed to generate zip";
+          try {
+            const errorData = await response.json();
+            errorMsg = errorData.error || errorMsg;
+          } catch (e) {
+            // Not JSON
+          }
+          throw new Error(errorMsg);
         }
 
         const blob = await response.blob();
+        if (blob.size === 0) {
+          throw new Error("Received empty archive");
+        }
+
         const blobUrl = URL.createObjectURL(blob);
 
         const link = document.createElement("a");
@@ -55,12 +66,16 @@ export function useZipDownload(options = {}) {
         // Cleanup
         setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
-        setProgress({ status: "done", error: null });
+        const successState = { status: "done", error: null };
+        setProgress(successState);
+        return successState;
       } catch (error) {
-        setProgress({
+        const errorState = {
           status: "error",
           error: error.message || "Failed to download zip",
-        });
+        };
+        setProgress(errorState);
+        return errorState;
       } finally {
         setIsDownloading(false);
       }

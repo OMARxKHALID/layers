@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://morpho.convert/sitemap.xml
+Sitemap: https://layers.convert/sitemap.xml

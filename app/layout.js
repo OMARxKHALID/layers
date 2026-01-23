@@ -7,11 +7,12 @@ const pixelifySans = Pixelify_Sans({
 });
 
 export const metadata = {
-  metadataBase: new URL("https://morpho.convert"),
-  title: "Morpho | Premium Media & Image Converter",
+  metadataBase: new URL("https://layers.convert"),
+  title: "Layers | Professional Media & Image Converter",
   description:
-    "Morpho is a high-performance, private file converter for images, audio, and video. Convert to AVIF, WebP, MP4, and more with zero quality loss.",
+    "Layers is a high-performance, private file converter for images, audio, and video. Convert to AVIF, WebP, MP4, and more with zero quality loss and professional results.",
   keywords: [
+    "layers converter",
     "file converter",
     "image converter",
     "video converter",
@@ -19,22 +20,22 @@ export const metadata = {
     "avif converter",
     "webp converter",
     "private conversion",
-    "lossless conversion",
+    "professional conversion",
   ],
-  authors: [{ name: "Morpho Team" }],
+  authors: [{ name: "Layers Team" }],
   openGraph: {
-    title: "Morpho | Premium Media & Image Converter",
+    title: "Layers | Professional Media & Image Converter",
     description:
-      "The most elegant way to transform your media. Fast, private, and lossless.",
-    url: "https://morpho.convert",
-    siteName: "Morpho",
+      "The professional way to transform your media layers. Fast, private, and high-quality.",
+    url: "https://layers.convert",
+    siteName: "Layers",
     locale: "en_US",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Morpho | Premium Media & Image Converter",
-    description: "Elegant, fast, and private file conversion.",
+    title: "Layers | Professional Media & Image Converter",
+    description: "Professional, fast, and private file conversion.",
   },
   robots: {
     index: true,
@@ -48,7 +49,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${pixelifySans.variable} antialiased`}>
+      <body className={`${pixelifySans.variable} antialiased font-sans`}>
         <div className="min-h-screen w-full relative overflow-hidden">
           <div
             className="fixed inset-0 z-0"

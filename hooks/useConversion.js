@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { getFriendlyErrorMessage } from "@/utils/error-utils";
 
 export const useConversion = (queue, updateItem, addToast, addToHistory) => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -41,9 +42,10 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
               addToast("Conversion cancelled", "info");
               resolve(null);
             } else if (data.status === "error") {
-              updateItem(itemId, { status: "error", errorMsg: data.error });
-              addToast(`Failed: ${data.error}`, "error");
-              reject(new Error(data.error));
+              const friendlyMsg = getFriendlyErrorMessage(data.error);
+              updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
+              addToast(friendlyMsg, "error");
+              reject(new Error(friendlyMsg));
             } else {
               // Fallback for pending or unknown states
               setTimeout(checkStatus, 1000);
@@ -112,6 +114,7 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
 
           const resultItem = {
             ...item,
+            jobId,
             status: "success",
             progress: 100,
             downloadUrl,
@@ -124,7 +127,8 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
         }
       } catch (err) {
         console.error("Conversion failed for", itemId, err);
-        updateItem(itemId, { status: "error", errorMsg: err.message });
+        const friendlyMsg = getFriendlyErrorMessage(err);
+        updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
       }
     },
     [queue, isProcessing, updateItem, pollJobStatus, addToast, addToHistory],

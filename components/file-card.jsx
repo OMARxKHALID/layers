@@ -14,6 +14,7 @@ import {
   Video,
   Play,
   AlertTriangle,
+  Image as ImageIcon,
 } from "lucide-react";
 import { FileCardSettings } from "./file-card-settings";
 
@@ -29,6 +30,7 @@ export const FileCard = ({
 }) => {
   const [showSettings, setShowSettings] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [tempName, setTempName] = useState("");
   const inputRef = useRef(null);
@@ -99,21 +101,22 @@ export const FileCard = ({
   return (
     <div
       className={`
-        glass-card rounded-[24px] p-4 mb-3 last:mb-0
+        glass-card rounded-[24px] p-4
         transition-all duration-500
         ${item.status === "error" ? "bg-red-50/20" : ""}
         ${item.status === "success" ? "bg-white/40" : ""}
       `}
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         {/* Preview / Icon */}
-        <div className="w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden bg-white/50 shadow-sm group relative shrink-0">
-          {previewUrl ? (
+        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-[24px] flex items-center justify-center overflow-hidden bg-white/50 group relative shrink-0">
+          {previewUrl && !imageError ? (
             <>
               <img
                 src={previewUrl}
                 alt="preview"
                 className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
               />
               {item.status === "success" && !item.settings.multiSize && (
                 <button
@@ -132,19 +135,21 @@ export const FileCard = ({
           ) : (
             <div className="text-gray-800 opacity-100">
               {inputType === "audio" ? (
-                <Music size={24} />
+                <Music className="w-6 h-6 sm:w-8 sm:h-8" />
               ) : inputType === "video" ? (
-                <Video size={24} />
+                <Video className="w-6 h-6 sm:w-8 sm:h-8" />
+              ) : inputType === "image" || imageError ? (
+                <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
               ) : (
-                <FileIcon size={24} />
+                <FileIcon className="w-6 h-6 sm:w-8 sm:h-8" />
               )}
             </div>
           )}
         </div>
 
         {/* Info Section */}
-        <div className="flex-grow min-w-0">
-          <div className="flex items-center justify-between mb-1.5">
+        <div className="flex-grow min-w-0 w-full sm:w-auto">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex-grow min-w-0">
               {isEditing ? (
                 <div className="flex items-center gap-2 w-full">
@@ -159,7 +164,7 @@ export const FileCard = ({
                         setIsEditing(false);
                       } else if (e.key === "Escape") setIsEditing(false);
                     }}
-                    className="text-sm bg-white/60 rounded-lg px-2 py-1 outline-none font-medium flex-grow shadow-sm text-gray-800"
+                    className="text-xs sm:text-sm bg-white/60 rounded-lg px-2 py-1 outline-none font-medium flex-grow text-gray-800"
                     autoFocus
                   />
                   <button
@@ -167,7 +172,7 @@ export const FileCard = ({
                       tempName.trim() && onNameChange(item.id, tempName.trim());
                       setIsEditing(false);
                     }}
-                    className="p-1.5 text-gray-500 hover:bg-black/5 rounded-lg"
+                    className="p-1 text-gray-800 hover:bg-black/5 rounded-lg"
                   >
                     <Check size={14} />
                   </button>
@@ -175,63 +180,49 @@ export const FileCard = ({
               ) : (
                 <div
                   className="group/name cursor-pointer inline-flex items-center gap-2 max-w-full"
-                  onClick={() =>
-                    item.status === "idle" &&
-                    (setTempName(displayName), setIsEditing(true))
-                  }
+                  onClick={() => (setTempName(displayName), setIsEditing(true))}
                 >
-                  <p className="text-sm font-medium text-gray-800 truncate tracking-tight">
+                  <p className="text-xs sm:text-sm font-medium text-gray-800 truncate tracking-tight">
                     {displayName}
                   </p>
-                  {item.status === "idle" && (
-                    <PencilLine
-                      size={12}
-                      className="text-gray-300 group-hover/name:text-gray-500 transition-colors shrink-0"
-                    />
-                  )}
+                  <PencilLine
+                    size={10}
+                    className="text-gray-600 group-hover/name:text-gray-800 transition-colors shrink-0"
+                  />
                 </div>
               )}
 
-              <div className="flex items-center gap-2 mt-0.5 opacity-50">
-                <span className="text-[11px] font-medium text-gray-600">
+              <div className="flex items-center gap-2 mt-0.5 opacity-60">
+                <span className="text-[9px] sm:text-[11px] font-medium text-gray-600">
                   {formatSize(item.file.size)}
                 </span>
                 {item.metadata?.width && (
-                  <span className="text-[11px] font-medium text-gray-600">
+                  <span className="text-[9px] sm:text-[11px] font-medium text-gray-600">
                     • {item.metadata.width}×{item.metadata.height}
-                  </span>
-                )}
-                {item.metadata?.duration && (
-                  <span className="text-[11px] font-medium text-gray-600">
-                    • {Math.floor(item.metadata.duration / 60)}:
-                    {Math.floor(item.metadata.duration % 60)
-                      .toString()
-                      .padStart(2, "0")}
-                    s
                   </span>
                 )}
               </div>
             </div>
 
             {/* Format Selector */}
-            <div className="shrink-0 ml-4">
+            <div className="shrink-0 ml-2">
               {item.status === "idle" ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/40 hover:bg-white/60 rounded-full border border-white/20 transition-all ছায়া-sm"
+                    className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-white/40 hover:bg-white/[0.38] rounded-full border border-white/20 transition-all"
                   >
-                    <span className="text-[11px] font-bold uppercase text-gray-600">
+                    <span className="text-[9px] sm:text-[11px] font-bold uppercase text-gray-600">
                       {item.format?.replace("to-", "")}
                     </span>
                     <ChevronDown
-                      size={12}
-                      className={`text-gray-400 transition-transform duration-300 ${showFormatDropdown ? "rotate-180" : ""}`}
+                      size={10}
+                      className={`text-gray-800 transition-transform duration-300 ${showFormatDropdown ? "rotate-180" : ""}`}
                     />
                   </button>
 
                   {showFormatDropdown && (
-                    <div className="absolute right-0 mt-2 w-32 bg-white/80 backdrop-blur-xl border border-white/40 rounded-2xl shadow-xl z-[100] py-2 animate-soft origin-top-right overflow-hidden">
+                    <div className="absolute right-0 mt-2 w-28 sm:w-32 bg-white/90 backdrop-blur-xl border border-white/40 rounded-xl sm:rounded-2xl z-[100] py-2 animate-soft origin-top-right overflow-hidden">
                       {filteredOptions.length > 0 ? (
                         filteredOptions.map((opt) => (
                           <button
@@ -240,13 +231,13 @@ export const FileCard = ({
                               onFormatChange(item.id, opt.id);
                               setShowFormatDropdown(false);
                             }}
-                            className={`w-full px-4 py-2 text-left text-[11px] font-bold uppercase hover:bg-black/5 transition-colors ${item.format === opt.id ? "text-black bg-black/5" : "text-gray-500"}`}
+                            className={`w-full px-3 py-1.5 sm:px-4 sm:py-2 text-left text-[9px] sm:text-[11px] font-bold uppercase hover:bg-black/[0.03] transition-colors ${item.format === opt.id ? "text-black bg-black/[0.03]" : "text-gray-500"}`}
                           >
                             {opt.label}
                           </button>
                         ))
                       ) : (
-                        <div className="px-4 py-2 text-[10px] font-bold text-gray-400 italic">
+                        <div className="px-3 py-1.5 text-[9px] font-bold text-gray-400 italic">
                           No targets
                         </div>
                       )}
@@ -254,8 +245,8 @@ export const FileCard = ({
                   )}
                 </div>
               ) : (
-                <div className="px-3 py-1.5 bg-white/30 rounded-full border border-white/10">
-                  <span className="text-[11px] font-bold uppercase text-gray-400">
+                <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-white/30 rounded-full border border-white/10">
+                  <span className="text-[9px] sm:text-[11px] font-bold uppercase text-gray-400">
                     {item.format?.replace("to-", "")}
                   </span>
                 </div>
@@ -267,22 +258,26 @@ export const FileCard = ({
           {(item.status === "converting" ||
             item.status === "uploading" ||
             item.status === "success") && (
-            <div className="mt-2.5 mb-1">
-              <div className="flex justify-between items-center mb-1.5">
-                <span className="text-[10px] font-medium text-gray-400">
+            <div className="mt-2 mb-1">
+              <div className="flex justify-between items-center mb-1">
+                <span
+                  className={`text-[9px] sm:text-[10px] font-medium tracking-tight ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
+                >
                   {item.status === "success"
                     ? "Complete"
                     : item.status === "uploading"
                       ? "Preparing..."
                       : "Processing..."}
                 </span>
-                <span className="text-[10px] font-bold text-gray-600">
+                <span
+                  className={`text-[9px] sm:text-[10px] font-medium ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
+                >
                   {item.progress}%
                 </span>
               </div>
               <div className="h-1 w-full bg-black/[0.03] rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-gray-800" : "bg-gray-400"}`}
+                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-gray-500" : "bg-gray-300"}`}
                   style={{ width: `${item.progress}%` }}
                 />
               </div>
@@ -290,9 +285,9 @@ export const FileCard = ({
           )}
 
           {item.status === "error" && item.errorMsg && (
-            <div className="flex items-center gap-1.5 mt-2 text-red-500/80">
-              <AlertTriangle size={12} />
-              <span className="text-[10px] font-medium truncate max-w-[200px]">
+            <div className="flex items-center gap-1.5 mt-1.5 text-red-500">
+              <AlertTriangle size={10} />
+              <span className="text-[9px] sm:text-[10px] font-medium truncate max-w-[150px] sm:max-w-[200px]">
                 {item.errorMsg}
               </span>
             </div>
@@ -300,87 +295,91 @@ export const FileCard = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-2 shrink-0 ml-2">
+        <div className="flex sm:flex-col items-center gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-black/[0.02] sm:border-t-0">
           {item.status === "success" ? (
             <>
-              {isImageOutput && !item.settings.multiSize && (
+              <div className="flex items-center gap-1 bg-white/40 p-1 rounded-full border border-white/30">
+                {isImageOutput && !item.settings.multiSize && (
+                  <button
+                    onClick={() =>
+                      onCompare({
+                        original: previewUrl,
+                        converted: `${item.downloadUrl}&preview=1`,
+                      })
+                    }
+                    className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
+                    title="View"
+                  >
+                    <Eye size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                )}
                 <button
-                  onClick={() =>
-                    onCompare({
-                      original: previewUrl,
-                      converted: `${item.downloadUrl}&preview=1`,
-                    })
-                  }
-                  className="p-2 text-gray-500 hover:text-black hover:bg-black/5 rounded-full transition-all"
-                  title="View"
+                  onClick={() => onFormatChange(item.id, item.format)}
+                  className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
+                  title="Restart"
                 >
-                  <Eye size={18} />
+                  <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
                 </button>
-              )}
-              <button
-                onClick={() => onFormatChange(item.id, item.format)}
-                className="p-2 text-gray-400 hover:text-black hover:bg-black/5 rounded-full transition-all"
-                title="Restart"
-              >
-                <RefreshCw size={18} />
-              </button>
+              </div>
               <a
                 href={item.downloadUrl}
                 download
                 aria-label={`Download ${displayName}`}
-                className="p-2.5 bg-gray-900 text-white rounded-full shadow-lg hover:bg-black transition-all"
+                className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all"
               >
-                <Download size={16} />
+                <Download size={14} className="sm:w-[16px] sm:h-[16px]" />
               </a>
             </>
           ) : (
             <>
-              {item.status === "idle" && (
-                <>
-                  <button
-                    onClick={() => onConvert(item.id)}
-                    aria-label="Start conversion"
-                    className="p-2 text-gray-800 hover:text-black hover:bg-black/5 rounded-full transition-all"
-                  >
-                    <Play
-                      size={18}
-                      fill="currentColor"
-                      className="opacity-100"
-                    />
-                  </button>
+              <div className="flex items-center gap-1 bg-white/40 p-1 rounded-full border border-white/30">
+                {item.status === "idle" && (
                   <button
                     onClick={() => setShowSettings(!showSettings)}
                     aria-label="Toggle settings"
-                    className={`p-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
+                    className={`p-1.5 sm:p-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
                   >
-                    <Settings2 size={18} />
+                    <Settings2 size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
-                </>
-              )}
-              {item.status === "converting" && (
+                )}
+                {item.status === "converting" && (
+                  <button
+                    onClick={() => onCancel(item.id)}
+                    aria-label="Cancel conversion"
+                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  >
+                    <XCircle size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                )}
+                {item.status === "error" && (
+                  <button
+                    onClick={() => onFormatChange(item.id, item.format)}
+                    className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
+                  >
+                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                )}
+                {item.status !== "converting" && (
+                  <button
+                    onClick={() => onRemove(item.id)}
+                    aria-label="Remove file"
+                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  >
+                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  </button>
+                )}
+              </div>
+              {item.status === "idle" && (
                 <button
-                  onClick={() => onCancel(item.id)}
-                  aria-label="Cancel conversion"
-                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                  onClick={() => onConvert(item.id)}
+                  aria-label="Start conversion"
+                  className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all"
                 >
-                  <XCircle size={18} />
-                </button>
-              )}
-              {item.status === "error" && (
-                <button
-                  onClick={() => onFormatChange(item.id, item.format)}
-                  className="p-2 text-gray-400 hover:text-black hover:bg-black/5 rounded-full transition-all"
-                >
-                  <RefreshCw size={18} />
-                </button>
-              )}
-              {item.status !== "converting" && (
-                <button
-                  onClick={() => onRemove(item.id)}
-                  aria-label="Remove file"
-                  className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
-                >
-                  <Trash2 size={18} />
+                  <Play
+                    size={14}
+                    fill="currentColor"
+                    className="sm:w-[16px] sm:h-[16px]"
+                  />
                 </button>
               )}
             </>

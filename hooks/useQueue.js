@@ -20,7 +20,7 @@ export const useQueue = (addToast) => {
   }, [queue]);
 
   useEffect(() => {
-    const stored = localStorage.getItem("morpho_history");
+    const stored = localStorage.getItem("layers_history");
     if (stored) setHistory(JSON.parse(stored));
   }, []);
 
@@ -42,7 +42,7 @@ export const useQueue = (addToast) => {
 
     setHistory((prev) => {
       const updated = [newEntry, ...prev].slice(0, 20);
-      localStorage.setItem("morpho_history", JSON.stringify(updated));
+      localStorage.setItem("layers_history", JSON.stringify(updated));
       return updated;
     });
   }, []);
@@ -55,9 +55,25 @@ export const useQueue = (addToast) => {
         // Only reset to idle if user CHANGED something but didn't provide a terminal status
         const isTerminalUpdate =
           updates.status === "success" || updates.status === "error";
+
+        // Don't reset if it's already a success item and only the name is changing
+        const isNamingOnlyOnSuccess =
+          item.status === "success" &&
+          updates.customName &&
+          !updates.format &&
+          !updates.settings;
+
         const needsReset =
           !isTerminalUpdate &&
+          !isNamingOnlyOnSuccess &&
           (updates.format || updates.settings || updates.customName);
+
+        // If it's a success item and name changed, we need to update the downloadUrl too
+        if (isNamingOnlyOnSuccess && item.downloadUrl) {
+          const url = new URL(item.downloadUrl, window.location.origin);
+          url.searchParams.set("filename", updates.customName);
+          updates.downloadUrl = url.pathname + url.search;
+        }
 
         return {
           ...item,
@@ -72,13 +88,22 @@ export const useQueue = (addToast) => {
     );
   }, []);
 
-  const removeItem = useCallback((id) => {
-    setQueue((prev) => {
-      const updated = prev.filter((item) => item.id !== id);
-      if (updated.length === 0) setAppState(AppState.IDLE);
-      return updated;
-    });
-  }, []);
+  const removeItem = useCallback(
+    (id) => {
+      setQueue((prev) => {
+        const itemToRemove = prev.find((i) => i.id === id);
+        const updated = prev.filter((item) => item.id !== id);
+        if (updated.length === 0) setAppState(AppState.IDLE);
+        if (itemToRemove) {
+          addToast(
+            `Removed ${itemToRemove.customName || itemToRemove.file.name}`,
+          );
+        }
+        return updated;
+      });
+    },
+    [setAppState, addToast],
+  );
 
   const resetQueue = useCallback(() => {
     setQueue([]);
@@ -87,8 +112,9 @@ export const useQueue = (addToast) => {
 
   const clearHistory = useCallback(() => {
     setHistory([]);
-    localStorage.removeItem("morpho_history");
-  }, []);
+    localStorage.removeItem("layers_history");
+    addToast("History cleared", "info");
+  }, [addToast]);
 
   return {
     appState,

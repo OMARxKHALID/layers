@@ -18,11 +18,6 @@
 
   --color-accent: #2c2c2c; /* Monochrome accent */
   --color-accent-subtle: rgba(0, 0, 0, 0.04);
-
-  --shadow-glass:
-    0 20px 40px -8px rgba(0, 0, 0, 0.04), 0 12px 20px -8px rgba(0, 0, 0, 0.02);
-  --shadow-glass-sm: 0 4px 12px -2px rgba(0, 0, 0, 0.03);
-  --shadow-float: 0 24px 48px -12px rgba(0, 0, 0, 0.06);
 }
 
 :root {
@@ -61,8 +56,9 @@ body {
       transparent 40%
     );
   background-attachment: fixed;
-  overflow: hidden;
-  height: 100vh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100vh;
   width: 100vw;
   -webkit-font-smoothing: antialiased;
 }
@@ -73,7 +69,6 @@ body {
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border: var(--glass-border);
-  box-shadow: var(--shadow-glass);
 }
 
 .glass-panel {
@@ -81,9 +76,6 @@ body {
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.03),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.2);
   transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -92,7 +84,6 @@ body {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.4);
-  box-shadow: var(--shadow-glass-sm);
   transition: all 0.4s ease-out;
 }
 
@@ -180,13 +171,11 @@ input {
   font-weight: 500;
   font-size: 14px;
   transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   border: none;
 }
 
 .btn-primary:hover {
-  background: #000;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  background: #333;
 }
 
 /* Utils */
