@@ -14,13 +14,14 @@
     "@ffprobe-installer/ffprobe": "latest",
     "clsx": "latest",
     "fluent-ffmpeg": "latest",
-    "jszip": "3.10.1",
+    "jszip": "^3.10.1",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
     "sharp": "latest",
-    "tailwind-merge": "latest"
+    "tailwind-merge": "latest",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",

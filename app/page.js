@@ -14,9 +14,15 @@ import { Header } from "@/components/header";
 import { DropZone } from "@/components/drop-zone";
 import { QueueList } from "@/components/queue-list";
 import { ActionPanel } from "@/components/action-panel";
-import { HistoryModal } from "@/components/history-modal";
 import { ToastContainer } from "@/components/toast";
-import { CompareView } from "@/components/compare-view";
+import dynamic from "next/dynamic";
+
+const HistoryModal = dynamic(() =>
+  import("@/components/history-modal").then((mod) => mod.HistoryModal),
+);
+const CompareView = dynamic(() =>
+  import("@/components/compare-view").then((mod) => mod.CompareView),
+);
 
 export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
@@ -136,6 +142,7 @@ export default function Home() {
     addToast("Creating archive...");
 
     const zipItems = items.map((item) => ({
+      jobId: item.jobId,
       fileName: item.customName,
       downloadUrl: item.downloadUrl,
     }));

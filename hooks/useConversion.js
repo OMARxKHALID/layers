@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useCallback } from "react";
 
 export const useConversion = (queue, updateItem, addToast, addToHistory) => {
@@ -6,45 +8,52 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
   const pollJobStatus = useCallback(
     (jobId, itemId) => {
       return new Promise((resolve, reject) => {
-        const poll = setInterval(async () => {
+        const startTime = Date.now();
+        const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+        const checkStatus = async () => {
+          if (Date.now() - startTime > TIMEOUT_MS) {
+            updateItem(itemId, { status: "error", errorMsg: "Timed out" });
+            reject(new Error("Conversion timed out"));
+            return;
+          }
+
           try {
             const res = await fetch(`/api/jobs/${jobId}`);
+            if (!res.ok) {
+              const msg = `Server check failed (${res.status})`;
+              updateItem(itemId, { status: "error", errorMsg: msg });
+              reject(new Error(msg));
+              return;
+            }
+
             const data = await res.json();
 
             if (data.status === "processing") {
               updateItem(itemId, {
                 progress: Math.max(10, data.progress || 10),
               });
+              setTimeout(checkStatus, 1000);
             } else if (data.status === "done") {
-              clearInterval(poll);
-
-              let resultItem = null;
-              // Note: We need the latest item from the queue to construct the final success state correctly
-              // But hooks can be tricky with stale closures if queue is passed as-is.
-              // We use functional update in updateItem but here we are constructing a resultItem for history.
-
-              // To be safe, we'll fetch the most recent item using a getter-like approach if needed,
-              // but for now, we'll rely on updateItem's internal setQueue and handle history there or separately.
-
-              // Actually, we can just construct the result from the data returned
-              // and trigger another update.
               resolve(data);
             } else if (data.status === "cancelled") {
-              clearInterval(poll);
               updateItem(itemId, { status: "idle", progress: 0 });
               addToast("Conversion cancelled", "info");
               resolve(null);
             } else if (data.status === "error") {
-              clearInterval(poll);
               updateItem(itemId, { status: "error", errorMsg: data.error });
               addToast(`Failed: ${data.error}`, "error");
               reject(new Error(data.error));
+            } else {
+              // Fallback for pending or unknown states
+              setTimeout(checkStatus, 1000);
             }
           } catch (e) {
-            clearInterval(poll);
             reject(e);
           }
-        }, 1000);
+        };
+
+        checkStatus();
       });
     },
     [updateItem, addToast],

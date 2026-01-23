@@ -11,8 +11,6 @@ export const OUTPUT_DIR = join(TEMP_DIR, "outputs");
 export const JOBS_DIR = join(TEMP_DIR, "jobs");
 
 const CLEANUP_MAX_AGE = 60 * 60 * 1000;
-const CLEANUP_INTERVAL = 10 * 60 * 1000;
-let lastCleanup = 0;
 
 // Store active processes for cancellation
 const activeProcesses = new Map();
@@ -28,7 +26,6 @@ export async function ensureDirs() {
     !existsSync(OUTPUT_DIR) && mkdir(OUTPUT_DIR, { recursive: true }),
     !existsSync(JOBS_DIR) && mkdir(JOBS_DIR, { recursive: true }),
   ]);
-  scheduleCleanup();
 }
 
 export async function saveJob(job) {
@@ -68,7 +65,7 @@ export async function cancelJob(id) {
   return false;
 }
 
-async function runCleanup() {
+export async function runCleanup() {
   const dirs = [UPLOAD_DIR, OUTPUT_DIR, JOBS_DIR];
   const now = Date.now();
 
@@ -86,13 +83,6 @@ async function runCleanup() {
         }),
       );
     } catch {}
-  }
-  lastCleanup = now;
-}
-
-function scheduleCleanup() {
-  if (Date.now() - lastCleanup >= CLEANUP_INTERVAL) {
-    runCleanup().catch(() => {});
   }
 }
 

@@ -318,6 +318,8 @@ export const FileCard = ({
               </button>
               <a
                 href={item.downloadUrl}
+                download
+                aria-label={`Download ${displayName}`}
                 className="p-2 bg-black text-white rounded-lg shadow-lg hover:bg-black/80 transition-all active:scale-95"
               >
                 <Download size={16} strokeWidth={2.5} />
@@ -329,12 +331,14 @@ export const FileCard = ({
                 <>
                   <button
                     onClick={() => onConvert(item.id)}
+                    aria-label="Start conversion"
                     className="p-2 text-blue-500 hover:bg-blue-50 rounded-lg transition-all"
                   >
                     <Play size={16} fill="currentColor" />
                   </button>
                   <button
                     onClick={() => setShowSettings(!showSettings)}
+                    aria-label="Toggle settings"
                     className={`p-2 rounded-lg transition-all ${showSettings ? "bg-black text-white shadow-md rotate-90" : "text-gray-500 hover:text-black bg-black/[0.02]"}`}
                   >
                     <Settings2 size={16} />
@@ -344,6 +348,7 @@ export const FileCard = ({
               {item.status === "converting" && (
                 <button
                   onClick={() => onCancel(item.id)}
+                  aria-label="Cancel conversion"
                   className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
                 >
                   <XCircle size={16} />
@@ -360,6 +365,7 @@ export const FileCard = ({
               {item.status !== "converting" && (
                 <button
                   onClick={() => onRemove(item.id)}
+                  aria-label="Remove file"
                   className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                 >
                   <Trash2 size={16} />

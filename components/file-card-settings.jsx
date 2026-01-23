@@ -178,8 +178,13 @@ export const FileCardSettings = ({
                 unit="PX"
                 value={item.settings.width}
                 onChange={(v) => {
-                  updateSetting("width", v ? parseInt(v) : null);
-                  updateSetting("scale", 100);
+                  const val = parseInt(v);
+                  if (val > 0) {
+                    updateSetting("width", val);
+                    updateSetting("scale", 100);
+                  } else if (!v) {
+                    updateSetting("width", null);
+                  }
                 }}
               />
               <span className="text-black/10">×</span>
@@ -188,8 +193,13 @@ export const FileCardSettings = ({
                 unit="PX"
                 value={item.settings.height}
                 onChange={(v) => {
-                  updateSetting("height", v ? parseInt(v) : null);
-                  updateSetting("scale", 100);
+                  const val = parseInt(v);
+                  if (val > 0) {
+                    updateSetting("height", val);
+                    updateSetting("scale", 100);
+                  } else if (!v) {
+                    updateSetting("height", null);
+                  }
                 }}
               />
             </div>

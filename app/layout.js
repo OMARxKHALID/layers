@@ -7,6 +7,7 @@ const pixelifySans = Pixelify_Sans({
 });
 
 export const metadata = {
+  metadataBase: new URL("https://morpho.convert"),
   title: "Morpho | Premium Media & Image Converter",
   description:
     "Morpho is a high-performance, private file converter for images, audio, and video. Convert to AVIF, WebP, MP4, and more with zero quality loss.",

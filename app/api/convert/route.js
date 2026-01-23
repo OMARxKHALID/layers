@@ -10,12 +10,28 @@ import {
   UPLOAD_DIR,
   OUTPUT_DIR,
 } from "@/utils/server-utils";
-
 import {
   CONVERSION_OPTIONS,
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "@/lib/config";
+import { z } from "zod";
+
+const settingsSchema = z.object({
+  quality: z.number().min(1).max(100).optional().default(100),
+  grayscale: z.boolean().optional().default(false),
+  rotation: z.number().optional().default(0),
+  scale: z.number().min(1).max(100).optional().default(100),
+  width: z.number().positive().nullable().optional(),
+  height: z.number().positive().nullable().optional(),
+  fps: z.number().positive().nullable().optional(),
+  audioBitrate: z.string().optional(),
+  frameOffset: z.number().min(0).optional().default(0),
+  aspectRatio: z.string().optional(),
+  flip: z.boolean().optional().default(false),
+  flop: z.boolean().optional().default(false),
+  multiSize: z.boolean().optional().default(false),
+});
 
 export async function POST(request) {
   try {
@@ -54,14 +70,22 @@ export async function POST(request) {
     // Basic MIME check (checking if the format can accept this type of file header)
     // Note: browser is usually reliable here, but we check against our config
     if (!typeConfig.accepts.includes(file.type) && file.type !== "") {
-      // Allow empty type if it's a known extension we handle, but generally we want match
-      // For now let's be strict
-      console.log("MIME mismatch:", file.type, "requested:", conversionType);
+      return NextResponse.json(
+        { error: `Invalid file type: ${file.type}` },
+        { status: 400 },
+      );
     }
 
-    const settings = settingsJson
-      ? JSON.parse(settingsJson)
-      : { quality: 100, grayscale: false, rotation: 0, scale: 100 };
+    let settings;
+    try {
+      const parsed = settingsJson ? JSON.parse(settingsJson) : {};
+      settings = settingsSchema.parse(parsed);
+    } catch (e) {
+      return NextResponse.json(
+        { error: "Invalid settings: " + e.errors?.[0]?.message || e.message },
+        { status: 400 },
+      );
+    }
 
     const jobId = randomUUID();
     const targetExt = conversionType.replace("to-", "");

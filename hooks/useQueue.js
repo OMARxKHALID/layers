@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
 import { AppState } from "@/lib/config";
 
@@ -5,6 +7,17 @@ export const useQueue = (addToast) => {
   const [appState, setAppState] = useState(AppState.IDLE);
   const [queue, setQueue] = useState([]);
   const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (queue.length > 0) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [queue]);
 
   useEffect(() => {
     const stored = localStorage.getItem("morpho_history");
