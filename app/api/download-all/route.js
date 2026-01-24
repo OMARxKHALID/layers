@@ -3,7 +3,8 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { getJob, ensureDirs, OUTPUT_DIR } from "@/utils/server-utils";
-import JSZip from "jszip";
+import archiver from "archiver";
+import { Writable } from "stream";
 
 export async function POST(request) {
   try {
@@ -14,70 +15,74 @@ export async function POST(request) {
       return NextResponse.json({ error: "No items provided" }, { status: 400 });
     }
 
-    const zip = new JSZip();
-    let fileCount = 0;
     const skippedReasons = [];
+    let fileCount = 0;
+
+    // Create a buffer to store the zip content
+    const chunks = [];
+    const writable = new Writable({
+      write(chunk, encoding, callback) {
+        chunks.push(chunk);
+        callback();
+      },
+    });
+
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    // Handle errors on the archive
+    const archivePromise = new Promise((resolve, reject) => {
+      archive.on("error", reject);
+      writable.on("finish", resolve);
+    });
+
+    archive.pipe(writable);
 
     for (const item of items) {
-      if (!item.jobId) {
-        skippedReasons.push(`Item ${item.fileName || "unknown"} missing ID`);
-        continue;
-      }
+      if (!item.jobId) continue;
 
       const job = await getJob(item.jobId);
-      if (!job) {
-        skippedReasons.push(`Job ${item.jobId} not found`);
+      if (!job || job.status !== "done" || !job.outputFile) {
+        skippedReasons.push(`Job ${item.jobId} invalid`);
         continue;
       }
 
-      if (job.status !== "done" || !job.outputFile) {
-        skippedReasons.push(`Job ${item.jobId} incomplete`);
-        continue;
-      }
-
-      try {
-        let finalPath = job.outputFile;
-        // Migration Fallback: If path shifted (e.g. from morpho_data to layers_data)
-        if (!existsSync(finalPath)) {
-          const fileName = finalPath.split(/[\\/]/).pop();
-          const currentCandidate = join(OUTPUT_DIR, fileName);
-          if (existsSync(currentCandidate)) {
-            finalPath = currentCandidate;
-          }
-        }
-
-        if (!existsSync(finalPath)) {
-          skippedReasons.push(`File for ${item.jobId} missing from disk`);
+      let finalPath = job.outputFile;
+      if (!existsSync(finalPath)) {
+        const fileName = finalPath.split(/[\\/]/).pop();
+        const currentCandidate = join(OUTPUT_DIR, fileName);
+        if (existsSync(currentCandidate)) {
+          finalPath = currentCandidate;
+        } else {
+          skippedReasons.push(`File missing for ${item.jobId}`);
           continue;
         }
-
-        const content = await readFile(finalPath);
-        const entryName =
-          item.fileName || `file_${item.jobId}.${job.targetExt}`;
-        zip.file(entryName, content);
-        fileCount++;
-      } catch (e) {
-        console.error(`Read error for job ${item.jobId}:`, e);
-        skippedReasons.push(`Internal error reading ${item.jobId}`);
       }
+
+      // Read file content
+      const content = await readFile(finalPath);
+      const entryName = item.fileName || `file_${item.jobId}.${job.targetExt}`;
+
+      archive.append(content, { name: entryName });
+      fileCount++;
     }
 
     if (fileCount === 0) {
-      const why =
-        skippedReasons.length > 0 ? ": " + skippedReasons.join(", ") : "";
       return NextResponse.json(
-        { error: "No valid files found for the archive" + why },
+        { error: "No valid files found to download" },
         { status: 404 },
       );
     }
 
-    const zipContent = await zip.generateAsync({ type: "uint8array" });
+    await archive.finalize();
+    await archivePromise;
 
-    return new NextResponse(zipContent, {
+    const zipBuffer = Buffer.concat(chunks);
+
+    return new NextResponse(zipBuffer, {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": 'attachment; filename="layers_bundle.zip"',
-        "Content-Length": zipContent.byteLength.toString(),
+        "Content-Length": zipBuffer.length.toString(),
       },
     });
   } catch (error) {
