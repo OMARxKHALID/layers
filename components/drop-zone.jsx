@@ -43,10 +43,19 @@ export const DropZone = ({ onFilesSelect, disabled }) => {
         onClick={() =>
           !disabled && document.getElementById("file-upload")?.click()
         }
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            document.getElementById("file-upload")?.click();
+          }
+        }}
+        tabIndex={disabled ? -1 : 0}
+        role="button"
+        aria-label="Upload files"
         className={`
           glass-card
           relative w-full max-w-xl h-[240px] md:h-[300px] rounded-[24px] md:rounded-[32px] flex flex-col items-center justify-center
-          cursor-pointer transition-all duration-500 ease-out
+          cursor-pointer transition-all duration-500 ease-out outline-none focus-visible:ring-2 focus-visible:ring-black/20
           ${isDragging ? "bg-white/50 scale-[1.01] ring-2 ring-white/50" : "hover:bg-white/45"}
           ${disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}
         `}

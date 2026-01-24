@@ -11,10 +11,9 @@ import { useConversion } from "@/hooks/useConversion";
 import { useGlobalDrag } from "@/hooks/useGlobalDrag";
 
 import { Header } from "@/components/header";
-import { DropZone } from "@/components/drop-zone";
-import { QueueList } from "@/components/queue-list";
-import { ActionPanel } from "@/components/action-panel";
 import { ToastContainer } from "@/components/toast";
+import { HeroSection } from "@/components/hero-section";
+import { TransformationWorkspace } from "@/components/transformation-workspace";
 import { Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -180,76 +179,24 @@ export default function Home() {
       <main className="flex-grow flex flex-col items-center px-4 md:px-6 relative z-10 overflow-hidden pb-6">
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden">
           {appState === AppState.IDLE ? (
-            <div className="flex flex-col items-center justify-start h-full w-full animate-soft pb-8 pt-12">
-              <div className="text-center mb-8 space-y-2">
-                <h1 className="text-5xl md:text-8xl font-[family-name:var(--font-pixelify-sans)] font-normal tracking-wide text-balance ">
-                  Layers
-                </h1>
-                <p className="text-lg text-gray-500 font-light tracking-wide max-w-md mx-auto">
-                  The ultimate media conversion tool. Fast, private, and
-                  high-quality.
-                </p>
-              </div>
-              <DropZone onFilesSelect={handleFilesSelect} />
-            </div>
+            <HeroSection onFilesSelect={handleFilesSelect} />
           ) : (
-            <div className="glass-panel w-full rounded-[30px] md:rounded-[40px] p-4 md:p-8 flex flex-col h-[85vh] max-h-[850px] mb-6 animate-liquid overflow-hidden relative">
-              <div className="flex items-center justify-between mb-6 flex-shrink-0 pl-1 pr-2">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-gray-900">
-                    {allSuccess ? "Completed" : "Queue"}
-                  </h2>
-                  <span className="text-[10px] md:text-xs font-bold px-2 py-0.5 bg-black/5 text-gray-500 rounded-full">
-                    {queue.length}
-                  </span>
-                </div>
-                {!isProcessing && (
-                  <button
-                    onClick={() => addMoreInputRef.current?.click()}
-                    className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-black transition-colors px-5 py-2 hover:bg-white/50 rounded-full border border-black/5"
-                  >
-                    + Add More
-                  </button>
-                )}
-                <input
-                  ref={addMoreInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files?.length) {
-                      handleFilesSelect(Array.from(e.target.files));
-                      e.target.value = "";
-                    }
-                  }}
-                />
-              </div>
-              <div className="flex-grow overflow-hidden relative -mx-2 px-2">
-                <div className="absolute inset-0 overflow-y-auto custom-scrollbar pr-2 pb-2">
-                  <QueueList
-                    queue={queue}
-                    onRemove={removeItem}
-                    onCancel={handleCancelItem}
-                    onFormatChange={(id, f) => updateItem(id, { format: f })}
-                    onSettingsChange={(id, s) =>
-                      updateItem(id, { settings: s })
-                    }
-                    onNameChange={(id, n) => updateItem(id, { customName: n })}
-                    onCompare={(data) => setActiveCompare(data)}
-                    onConvert={handleConvertItem}
-                  />
-                </div>
-              </div>
-              <div className="flex-shrink-0 pt-6 mt-2 border-t border-black/[0.04]">
-                <ActionPanel
-                  queue={queue}
-                  isProcessing={isProcessing}
-                  onConvertAll={handleConvertAll}
-                  onConvertMore={resetQueue}
-                  onDownloadAll={handleDownloadAll}
-                />
-              </div>
-            </div>
+            <TransformationWorkspace
+              queue={queue}
+              isProcessing={isProcessing}
+              allSuccess={allSuccess}
+              onAddMore={() => addMoreInputRef.current?.click()}
+              onRemoveItem={removeItem}
+              onCancelItem={handleCancelItem}
+              onUpdateItem={updateItem}
+              onConvertItem={handleConvertItem}
+              onConvertAll={handleConvertAll}
+              onResetQueue={resetQueue}
+              onDownloadAll={handleDownloadAll}
+              onCompare={(data) => setActiveCompare(data)}
+              addMoreInputRef={addMoreInputRef}
+              handleFilesSelect={handleFilesSelect}
+            />
           )}
         </div>
       </main>

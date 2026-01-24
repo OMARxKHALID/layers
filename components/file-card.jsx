@@ -9,12 +9,12 @@ import {
   Check,
   Eye,
   RefreshCw,
-  XCircle,
   Music,
   Video,
   Play,
   AlertTriangle,
   Image as ImageIcon,
+  Square,
 } from "lucide-react";
 import { FileCardSettings } from "./file-card-settings";
 
@@ -32,9 +32,49 @@ export const FileCard = ({
   const [isEditing, setIsEditing] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [showFormatDropdown, setShowFormatDropdown] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [tempName, setTempName] = useState("");
+  const [visualProgress, setVisualProgress] = useState(item.progress || 0);
+  const [workerPreviewUrl, setWorkerPreviewUrl] = useState(null);
   const inputRef = useRef(null);
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!item.file.type.startsWith("image/")) return;
+
+    const worker = new Worker("/preview-worker.js");
+    worker.onmessage = (e) => {
+      const { blob, error } = e.data;
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        setWorkerPreviewUrl(url);
+      }
+      worker.terminate();
+    };
+    worker.postMessage({ file: item.file, id: item.id });
+
+    return () => {
+      worker.terminate();
+      if (workerPreviewUrl) URL.revokeObjectURL(workerPreviewUrl);
+    };
+  }, [item.file, item.id]);
+
+  useEffect(() => {
+    if (item.status === "converting" || item.status === "uploading") {
+      const step = item.status === "uploading" ? 0.5 : 0.2;
+      const interval = setInterval(() => {
+        setVisualProgress((prev) => {
+          if (prev >= 99) return 99;
+          // Slowly creep forward between real updates
+          if (prev < item.progress) return item.progress;
+          return +(prev + step).toFixed(2);
+        });
+      }, 200);
+      return () => clearInterval(interval);
+    } else {
+      setVisualProgress(item.progress);
+    }
+  }, [item.status, item.progress]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -48,6 +88,10 @@ export const FileCard = ({
 
   const updateSetting = (key, value) => {
     onSettingsChange(item.id, { ...item.settings, [key]: value });
+  };
+
+  const updateSettings = (updates) => {
+    onSettingsChange(item.id, { ...item.settings, ...updates });
   };
 
   const previewUrl = useMemo(() => {
@@ -102,7 +146,8 @@ export const FileCard = ({
     <div
       className={`
         glass-card rounded-[24px] p-4
-        transition-all duration-500
+        transition-all duration-500 relative overflow-visible
+        ${showFormatDropdown || showSettings ? "z-[50]" : "z-[1]"}
         ${item.status === "error" ? "bg-red-50/20" : ""}
         ${item.status === "success" ? "bg-white/40" : ""}
       `}
@@ -110,10 +155,10 @@ export const FileCard = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
         {/* Preview / Icon */}
         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-[24px] flex items-center justify-center overflow-hidden bg-white/50 group relative shrink-0">
-          {previewUrl && !imageError ? (
+          {workerPreviewUrl || (previewUrl && !imageError) ? (
             <>
               <img
-                src={previewUrl}
+                src={workerPreviewUrl || previewUrl}
                 alt="preview"
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}
@@ -193,11 +238,11 @@ export const FileCard = ({
               )}
 
               <div className="flex items-center gap-2 mt-0.5 opacity-60">
-                <span className="text-[9px] sm:text-[11px] font-medium text-gray-600">
+                <span className="text-xs font-medium text-gray-500">
                   {formatSize(item.file.size)}
                 </span>
                 {item.metadata?.width && (
-                  <span className="text-[9px] sm:text-[11px] font-medium text-gray-600">
+                  <span className="text-xs font-medium text-gray-500">
                     • {item.metadata.width}×{item.metadata.height}
                   </span>
                 )}
@@ -209,35 +254,61 @@ export const FileCard = ({
               {item.status === "idle" ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    onClick={() => setShowFormatDropdown(!showFormatDropdown)}
-                    className="flex items-center gap-1 px-2 py-1 sm:px-3 sm:py-1.5 bg-white/40 hover:bg-white/[0.38] rounded-full border border-white/20 transition-all"
+                    onClick={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const spaceBelow = window.innerHeight - rect.bottom;
+                      setOpenUpward(spaceBelow < 180);
+                      setShowFormatDropdown(!showFormatDropdown);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/40 hover:bg-white/60 rounded-full border border-white/20 transition-all duration-300 group"
                   >
-                    <span className="text-[9px] sm:text-[11px] font-bold uppercase text-gray-600">
+                    <span className="text-[10px] sm:text-xs font-bold uppercase text-gray-700 tracking-tight">
                       {item.format?.replace("to-", "")}
                     </span>
                     <ChevronDown
-                      size={10}
-                      className={`text-gray-800 transition-transform duration-300 ${showFormatDropdown ? "rotate-180" : ""}`}
+                      size={12}
+                      className={`text-gray-900 transition-transform duration-500 ${showFormatDropdown ? "rotate-180" : "group-hover:translate-y-0.5"}`}
                     />
                   </button>
 
                   {showFormatDropdown && (
-                    <div className="absolute right-0 mt-2 w-28 sm:w-32 bg-white/90 backdrop-blur-xl border border-white/40 rounded-xl sm:rounded-2xl z-[100] py-2 animate-soft origin-top-right overflow-hidden">
+                    <div
+                      className={`
+                        absolute right-0 min-w-[100px] w-fit bg-white/95 backdrop-blur-3xl border border-white/60 rounded-xl z-[1000] p-1
+                        overflow-hidden whitespace-nowrap shadow-sm shadow-black/5
+                        ${openUpward ? "bottom-full mb-1.5 origin-bottom-right animate-dropdown-up" : "top-full mt-1.5 origin-top-right animate-dropdown"}
+                      `}
+                    >
                       {filteredOptions.length > 0 ? (
-                        filteredOptions.map((opt) => (
-                          <button
-                            key={opt.id}
-                            onClick={() => {
-                              onFormatChange(item.id, opt.id);
-                              setShowFormatDropdown(false);
-                            }}
-                            className={`w-full px-3 py-1.5 sm:px-4 sm:py-2 text-left text-[9px] sm:text-[11px] font-bold uppercase hover:bg-black/[0.03] transition-colors ${item.format === opt.id ? "text-black bg-black/[0.03]" : "text-gray-500"}`}
-                          >
-                            {opt.label}
-                          </button>
-                        ))
+                        <div className="flex flex-col gap-0.5">
+                          {filteredOptions.map((opt) => (
+                            <button
+                              key={opt.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onFormatChange(item.id, opt.id);
+                                setTimeout(
+                                  () => setShowFormatDropdown(false),
+                                  200,
+                                );
+                              }}
+                              className={`w-full px-3 py-1.5 text-left rounded-lg transition-all flex items-center justify-between gap-4 group/opt ${item.format === opt.id ? "bg-black/5 text-gray-900" : "text-gray-500 hover:bg-black/[0.03] hover:text-gray-900"}`}
+                            >
+                              <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-tight">
+                                {opt.label}
+                              </span>
+                              {item.format === opt.id && (
+                                <Check
+                                  size={12}
+                                  strokeWidth={3}
+                                  className="text-gray-900 animate-in zoom-in-50 duration-300"
+                                />
+                              )}
+                            </button>
+                          ))}
+                        </div>
                       ) : (
-                        <div className="px-3 py-1.5 text-[9px] font-bold text-gray-400 italic">
+                        <div className="px-4 py-2 text-[10px] font-bold text-gray-400 italic">
                           No targets
                         </div>
                       )}
@@ -246,7 +317,7 @@ export const FileCard = ({
                 </div>
               ) : (
                 <div className="px-2 py-1 sm:px-3 sm:py-1.5 bg-white/30 rounded-full border border-white/10">
-                  <span className="text-[9px] sm:text-[11px] font-bold uppercase text-gray-400">
+                  <span className="text-xs font-bold uppercase text-gray-400">
                     {item.format?.replace("to-", "")}
                   </span>
                 </div>
@@ -261,7 +332,7 @@ export const FileCard = ({
             <div className="mt-2 mb-1">
               <div className="flex justify-between items-center mb-1">
                 <span
-                  className={`text-[9px] sm:text-[10px] font-medium tracking-tight ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
+                  className={`text-[10px] font-medium tracking-tight ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
                 >
                   {item.status === "success"
                     ? "Complete"
@@ -270,15 +341,15 @@ export const FileCard = ({
                       : "Processing..."}
                 </span>
                 <span
-                  className={`text-[9px] sm:text-[10px] font-medium ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
+                  className={`text-[10px] font-medium ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
                 >
-                  {item.progress}%
+                  {Math.floor(visualProgress)}%
                 </span>
               </div>
               <div className="h-1 w-full bg-black/[0.03] rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-gray-500" : "bg-gray-300"}`}
-                  style={{ width: `${item.progress}%` }}
+                  style={{ width: `${visualProgress}%` }}
                 />
               </div>
             </div>
@@ -295,7 +366,7 @@ export const FileCard = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex sm:flex-col items-center gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-end mt-2 sm:mt-0 pt-2 sm:pt-0 border-t border-black/[0.02] sm:border-t-0">
+        <div className="flex flex-row sm:flex-col items-center gap-1.5 sm:gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-between sm:justify-end mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-black/[0.03] sm:border-t-0">
           {item.status === "success" ? (
             <>
               <div className="flex items-center gap-1 bg-white/40 p-1 rounded-full border border-white/30">
@@ -325,7 +396,7 @@ export const FileCard = ({
                 href={item.downloadUrl}
                 download
                 aria-label={`Download ${displayName}`}
-                className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all"
+                className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all flex items-center justify-center"
               >
                 <Download size={14} className="sm:w-[16px] sm:h-[16px]" />
               </a>
@@ -339,7 +410,10 @@ export const FileCard = ({
                     aria-label="Toggle settings"
                     className={`p-1.5 sm:p-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
                   >
-                    <Settings2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Settings2
+                      size={16}
+                      className={`sm:w-[18px] sm:h-[18px] transition-transform duration-500 ease-out ${showSettings ? "rotate-90" : "rotate-0"}`}
+                    />
                   </button>
                 )}
                 {item.status === "converting" && (
@@ -348,24 +422,23 @@ export const FileCard = ({
                     aria-label="Cancel conversion"
                     className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                   >
-                    <XCircle size={16} className="sm:w-[18px] sm:h-[18px]" />
-                  </button>
-                )}
-                {item.status === "error" && (
-                  <button
-                    onClick={() => onFormatChange(item.id, item.format)}
-                    className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
-                  >
-                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Square
+                      size={14}
+                      fill="currentColor"
+                      className="sm:w-[16px] sm:h-[16px]"
+                    />
                   </button>
                 )}
                 {item.status !== "converting" && (
                   <button
                     onClick={() => onRemove(item.id)}
                     aria-label="Remove file"
-                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group/trash"
                   >
-                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Trash2
+                      size={16}
+                      className="sm:w-[18px] sm:h-[18px] transition-colors"
+                    />
                   </button>
                 )}
               </div>
@@ -373,12 +446,12 @@ export const FileCard = ({
                 <button
                   onClick={() => onConvert(item.id)}
                   aria-label="Start conversion"
-                  className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all"
+                  className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all active:scale-95 group/play"
                 >
                   <Play
                     size={14}
                     fill="currentColor"
-                    className="sm:w-[16px] sm:h-[16px]"
+                    className="sm:w-[16px] sm:h-[16px] group-hover/play:translate-x-0.5 transition-transform"
                   />
                 </button>
               )}
@@ -392,6 +465,7 @@ export const FileCard = ({
           <FileCardSettings
             item={item}
             updateSetting={updateSetting}
+            updateSettings={updateSettings}
             showQuality={showQuality}
             isVideoOutput={isVideoOutput}
             showAudioSettings={showAudioSettings}

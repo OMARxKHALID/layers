@@ -1,7 +1,11 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
     try {
-      const { runCleanup } = await import("./utils/server-utils");
+      const { runCleanup, restoreQueue } = await import("./utils/server-utils");
+
+      // Recover pending jobs on startup
+      restoreQueue().catch(console.error);
+
       // Run cleanup every 10 minutes
       setInterval(
         () => {

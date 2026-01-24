@@ -9,31 +9,96 @@
   --color-glass-border: rgba(255, 255, 255, 0.4);
   --color-glass-highlight: rgba(255, 255, 255, 0.8);
 
-  --color-surface-base: #f8f9fa; /* Very light neutral gray */
+  --color-surface-base: #f8f9fa;
   --color-surface-content: #ffffff;
 
   --color-text-primary: #2c2c2c;
   --color-text-secondary: #666666;
   --color-text-tertiary: #999999;
 
-  --color-accent: #2c2c2c; /* Monochrome accent */
   --color-accent-subtle: rgba(0, 0, 0, 0.04);
+
+  --font-inter: var(--font-inter), sans-serif;
+
+  --animate-dropdown: dropdown-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-dropdown-up: dropdown-pop-up 0.3s cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+  --animate-wiggle: wiggle 0.3s ease-in-out infinite;
+  --animate-pulse-gentle: pulse-gentle 2s ease-in-out infinite;
+
+  @keyframes dropdown-pop {
+    from {
+      opacity: 0;
+      scale: 0.96;
+      translate: 0 -4px;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes dropdown-pop-up {
+    from {
+      opacity: 0;
+      scale: 0.96;
+      translate: 0 4px;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+      translate: 0 0;
+    }
+  }
+
+  @keyframes wiggle {
+    0%,
+    100% {
+      rotate: 0deg;
+    }
+    25% {
+      rotate: -8deg;
+    }
+    75% {
+      rotate: 8deg;
+    }
+  }
+
+  @keyframes pulse-gentle {
+    0%,
+    100% {
+      scale: 1;
+      opacity: 1;
+    }
+    50% {
+      scale: 1.05;
+      opacity: 0.9;
+    }
+  }
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      translate: 0 10px;
+    }
+    to {
+      opacity: 1;
+      translate: 0 0;
+    }
+  }
 }
 
 :root {
   --font-sans:
     "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
-
-  /* Liquid Glass Spec */
-  --bg-color: #f2f4f6; /* Soft, airy background */
-  --glass-surface: rgba(255, 255, 255, 0.45); /* Highly translucent */
+  --bg-color: #f2f4f6;
+  --glass-surface: rgba(255, 255, 255, 0.45);
   --glass-border: 1px solid rgba(255, 255, 255, 0.5);
   --glass-blur: blur(28px) saturate(120%);
-
   --text-main: #2a2a2a;
   --text-muted: #737373;
-
   --radius-lg: 32px;
   --radius-md: 20px;
   --radius-sm: 12px;
@@ -43,18 +108,14 @@ body {
   font-family: var(--font-sans);
   background-color: var(--bg-color);
   color: var(--text-main);
-  /* Subtle mesh gradient for depth */
+  /* Soft Ethereal Mesh 2025 */
+  background-color: #f3f4f6;
   background-image:
-    radial-gradient(
-      circle at 15% 15%,
-      rgba(255, 255, 255, 0.8) 0%,
-      transparent 40%
-    ),
-    radial-gradient(
-      circle at 85% 85%,
-      rgba(255, 255, 255, 0.6) 0%,
-      transparent 40%
-    );
+    radial-gradient(at 0% 0%, hsla(253, 16%, 90%, 1) 0, transparent 50%),
+    radial-gradient(at 50% 0%, hsla(225, 100%, 94%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(339, 100%, 94%, 1) 0, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(339, 100%, 94%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 100%, hsla(225, 100%, 94%, 1) 0, transparent 50%);
   background-attachment: fixed;
   overflow-x: hidden;
   overflow-y: auto;
@@ -63,7 +124,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Base Glass Class */
 .glass {
   background: var(--glass-surface);
   backdrop-filter: var(--glass-blur);
@@ -75,7 +135,7 @@ body {
   background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(40px);
   -webkit-backdrop-filter: blur(40px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.5);
   transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -83,7 +143,7 @@ body {
   background: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   transition: all 0.4s ease-out;
 }
 
@@ -91,17 +151,15 @@ body {
   background: rgba(255, 255, 255, 0.45);
 }
 
-/* Typography Overrides */
 h1,
 h2,
 h3,
 h4,
-buttons,
+button,
 input {
   letter-spacing: -0.02em;
 }
 
-/* Minimal Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -109,14 +167,13 @@ input {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05); /* Extremely subtle */
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.1);
 }
 
-/* Animations - Smoother & Slower */
 @keyframes softFadeIn {
   0% {
     opacity: 0;
@@ -126,6 +183,42 @@ input {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.mascot-animation {
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group:hover .mascot-animation {
+  transform: scale(1.1) rotate(6deg);
+}
+
+.btn-hover-bounce {
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.btn-hover-bounce:hover {
+  transform: scale(1.1);
+}
+
+.btn-hover-bounce:active {
+  transform: scale(0.95);
+}
+
+.history-icon {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.group:hover .history-icon {
+  transform: rotate(360deg);
+}
+
+.trash-wiggle {
+  transition: transform 0.3s ease-in-out;
+}
+
+.group:hover .trash-wiggle {
+  animation: wiggle 0.3s ease-in-out infinite;
 }
 
 .animate-soft {
@@ -147,38 +240,6 @@ input {
   animation: liquidScale 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
-/* Buttons */
-.btn-minimal {
-  background: rgba(0, 0, 0, 0.03);
-  color: #333;
-  border-radius: 99px; /* Pill shape */
-  padding: 10px 20px;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.4s ease;
-  border: 1px solid transparent;
-}
-
-.btn-minimal:hover {
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.btn-primary {
-  background: #2a2a2a;
-  color: #fff;
-  border-radius: 99px;
-  padding: 12px 28px;
-  font-weight: 500;
-  font-size: 14px;
-  transition: all 0.5s cubic-bezier(0.19, 1, 0.22, 1);
-  border: none;
-}
-
-.btn-primary:hover {
-  background: #333;
-}
-
-/* Utils */
 .text-balance {
   text-wrap: balance;
 }

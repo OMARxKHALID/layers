@@ -1,8 +1,9 @@
 import { writeFile, readFile, unlink, mkdir, readdir, stat } from "fs/promises";
-import { existsSync } from "fs";
+import { existsSync, createWriteStream } from "fs";
 import { join, basename } from "path";
 import { tmpdir } from "os";
-import JSZip from "jszip";
+import archiver from "archiver";
+import { pipeline } from "stream/promises";
 import { ConverterFactory } from "../lib/converters";
 
 export const TEMP_DIR = join(tmpdir(), "layers_data");
@@ -18,7 +19,8 @@ const activeProcesses = new Map();
 // --- Queue Management ---
 const jobQueue = [];
 let activeJobCount = 0;
-const MAX_CONCURRENT_JOBS = 3;
+const MAX_CONCURRENT_JOBS = 2; // Reduced slightly for better stability
+let isInitialized = false;
 
 export async function ensureDirs() {
   await Promise.all([
@@ -63,22 +65,36 @@ export async function getJob(id) {
 }
 
 export async function cancelJob(id) {
-  // Remove from queue if not started
-  const queueIndex = jobQueue.findIndex((j) => j.job.id === id);
+  // 1. Remove from queue if pending
+  const queueIndex = jobQueue.findIndex((j) => j === id); // Fix: jobQueue is array of IDs
   if (queueIndex !== -1) {
-    const { job } = jobQueue.splice(queueIndex, 1)[0];
-    job.status = "cancelled";
-    await saveJob(job);
+    jobQueue.splice(queueIndex, 1);
+    const job = await getJob(id);
+    if (job) {
+      job.status = "cancelled";
+      await saveJob(job);
+    }
     return true;
   }
 
+  // 2. Handle active process
   const proc = activeProcesses.get(id);
   if (proc) {
     if (proc.kill) proc.kill("SIGTERM");
     else if (proc.abort) proc.abort();
     activeProcesses.delete(id);
+  }
+
+  // 3. Mark as cancelled in DB regardless
+  // This ensures that even if the process finishes purely by timing,
+  // the final check in triggerNextJob will see it was cancelled.
+  const job = await getJob(id);
+  if (job) {
+    job.status = "cancelled";
+    await saveJob(job);
     return true;
   }
+
   return false;
 }
 
@@ -104,15 +120,64 @@ export async function runCleanup() {
 }
 
 export async function processJob(job, settings) {
-  jobQueue.push({ job, settings });
+  job.settings = settings;
+  await saveJob(job);
+  jobQueue.push(job.id);
   triggerNextJob();
+}
+
+export async function restoreQueue() {
+  if (isInitialized) return;
+  await ensureDirs();
+
+  try {
+    const files = await readdir(JOBS_DIR);
+    const pendingJobs = [];
+
+    for (const file of files) {
+      if (!file.endsWith(".json")) continue;
+      try {
+        const job = JSON.parse(await readFile(join(JOBS_DIR, file), "utf-8"));
+        // If it was pending or processing (interrupted), re-queue it
+        if (job.status === "pending" || job.status === "processing") {
+          // Reset status to pending so it can be picked up safely
+          job.status = "pending";
+          job.progress = 0;
+          await saveJob(job);
+          pendingJobs.push(job);
+        }
+      } catch {}
+    }
+
+    // Sort by creation time to maintain order
+    pendingJobs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+
+    for (const job of pendingJobs) {
+      jobQueue.push(job.id);
+    }
+
+    console.log(`Restored ${pendingJobs.length} jobs from disk.`);
+    isInitialized = true;
+    triggerNextJob();
+  } catch (err) {
+    console.error("Queue restoration failed:", err);
+  }
 }
 
 async function triggerNextJob() {
   if (activeJobCount >= MAX_CONCURRENT_JOBS || jobQueue.length === 0) return;
 
   activeJobCount++;
-  const { job, settings } = jobQueue.shift();
+  const jobId = jobQueue.shift();
+  const job = await getJob(jobId);
+
+  if (!job || job.status === "cancelled") {
+    activeJobCount--;
+    triggerNextJob();
+    return;
+  }
+
+  const settings = job.settings || {};
 
   try {
     job.status = "processing";
@@ -130,30 +195,55 @@ async function triggerNextJob() {
     };
 
     const result = await converter.convert(job, settings, async (p) => {
+      // Optimistic progress update, but check cancel status periodically if needed
+      // (Optimization: In a real heavy app we'd check DB here, but let's rely on final check)
       job.progress = p;
       await saveJob(job);
     });
 
     activeProcesses.delete(job.id);
 
-    if (result === "cancelled") {
+    // CRITICAL FIX: Reload job from disk to check if it was cancelled externally
+    // while we were awaiting the conversion.
+    const freshJob = await getJob(job.id);
+    if (freshJob && freshJob.status === "cancelled") {
+      // It was cancelled! Do not overwrite with success.
+      // Cleanup any partial outputs
+      if (result && result.outputFiles) {
+        for (const f of result.outputFiles) await unlink(f).catch(() => {});
+      } else {
+        await unlink(job.outputFile).catch(() => {});
+      }
+      // job is already saved as cancelled by cancelJob
+    } else if (result === "cancelled") {
+      // Internal cancellation detection (e.g. ffmpeg error)
       job.status = "cancelled";
       job.progress = 0;
+      await saveJob(job);
     } else {
       // Handle multi-file results (zip them)
       if (result && result.outputFiles && result.outputFiles.length > 1) {
-        const zip = new JSZip();
-        for (const filePath of result.outputFiles) {
-          const content = await readFile(filePath);
-          zip.file(basename(filePath), content);
-        }
-        const zipBuffer = await zip.generateAsync({ type: "nodebuffer" });
-
         // Update job to be a zip
         job.targetExt = "zip";
         const newOutputPath = job.outputFile.replace(/\.[^.]+$/, ".zip");
-        await writeFile(newOutputPath, zipBuffer);
         job.outputFile = newOutputPath;
+
+        const outputStream = createWriteStream(newOutputPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
+
+        const zipFinished = new Promise((resolve, reject) => {
+          outputStream.on("close", resolve);
+          archive.on("error", reject);
+        });
+
+        archive.pipe(outputStream);
+
+        for (const filePath of result.outputFiles) {
+          archive.file(filePath, { name: basename(filePath) });
+        }
+
+        await archive.finalize();
+        await zipFinished;
 
         // Cleanup individual files
         for (const filePath of result.outputFiles) {
@@ -163,15 +253,23 @@ async function triggerNextJob() {
 
       job.progress = 100;
       job.status = "done";
+      await saveJob(job);
     }
 
-    await saveJob(job);
+    // Cleanup input
     await unlink(job.inputFile).catch(() => {});
   } catch (error) {
     activeProcesses.delete(job.id);
-    job.status = "error";
-    job.error = error.message;
-    await saveJob(job);
+
+    // Check if cancellation happened during error
+    const freshJob = await getJob(job.id);
+    if (freshJob && freshJob.status === "cancelled") {
+      // Ignore error, it was cancelled
+    } else {
+      job.status = "error";
+      job.error = error.message;
+      await saveJob(job);
+    }
   } finally {
     activeJobCount--;
     triggerNextJob();

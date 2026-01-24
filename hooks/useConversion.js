@@ -142,11 +142,9 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
 
     setIsProcessing(true);
 
-    for (const item of itemsToProcess) {
-      // Small delay to prevent hitting API instantly for many files if needed,
-      // but sequential processing here is already safe.
-      await handleConvertItem(item.id);
-    }
+    // Trigger all items in parallel.
+    // The server-side queue management (MAX_CONCURRENT_JOBS = 3) will handle the throttling.
+    await Promise.all(itemsToProcess.map((item) => handleConvertItem(item.id)));
 
     setIsProcessing(false);
   }, [queue, handleConvertItem]);

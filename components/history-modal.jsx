@@ -1,4 +1,4 @@
-import { X, ScrollText, File, Download } from "lucide-react";
+import { X, History, File, Download } from "lucide-react";
 
 export const HistoryModal = ({ history, onClose, onClear }) => {
   return (
@@ -12,7 +12,7 @@ export const HistoryModal = ({ history, onClose, onClear }) => {
         <div className="flex items-center justify-between mb-6 px-1">
           <div className="flex items-center gap-3 md:gap-4 text-gray-800">
             <div className="bg-white/60 p-2 md:p-2.5 rounded-xl md:rounded-2xl ring-1 ring-white/50">
-              <ScrollText
+              <History
                 size={18}
                 strokeWidth={2}
                 className="text-gray-800 md:w-5 md:h-5"
@@ -33,7 +33,7 @@ export const HistoryModal = ({ history, onClose, onClear }) => {
         <div className="max-h-[45vh] overflow-y-auto pr-2 space-y-3 custom-scrollbar -mr-2 pl-1 py-1">
           {history.length === 0 ? (
             <div className="text-center py-16 flex flex-col items-center gap-4 opacity-40">
-              <ScrollText size={48} strokeWidth={1} className="text-gray-600" />
+              <History size={48} strokeWidth={1} className="text-gray-600" />
               <p className="text-gray-500 text-xs font-medium uppercase tracking-widest">
                 No Sessions Yet
               </p>
