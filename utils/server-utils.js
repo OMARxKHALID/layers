@@ -19,7 +19,7 @@ const activeProcesses = new Map();
 // --- Queue Management ---
 const jobQueue = [];
 let activeJobCount = 0;
-const MAX_CONCURRENT_JOBS = 2; // Reduced slightly for better stability
+const MAX_CONCURRENT_JOBS = 10; // Increased for serverless concurrency
 let isInitialized = false;
 
 export async function ensureDirs() {
