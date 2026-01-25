@@ -44,10 +44,9 @@ export const FileCard = ({
 
     const worker = new Worker("/preview-worker.js");
     worker.onmessage = (e) => {
-      const { blob, error } = e.data;
+      const { blob } = e.data;
       if (blob) {
-        const url = URL.createObjectURL(blob);
-        setWorkerPreviewUrl(url);
+        setWorkerPreviewUrl(URL.createObjectURL(blob));
       }
       worker.terminate();
     };
@@ -65,7 +64,6 @@ export const FileCard = ({
       const interval = setInterval(() => {
         setVisualProgress((prev) => {
           if (prev >= 99) return 99;
-          // Slowly creep forward between real updates
           if (prev < item.progress) return item.progress;
           return +(prev + step).toFixed(2);
         });
@@ -95,34 +93,26 @@ export const FileCard = ({
   };
 
   const previewUrl = useMemo(() => {
-    if (item.file.type.startsWith("image/")) {
-      return URL.createObjectURL(item.file);
-    }
-    return null;
+    return item.file.type.startsWith("image/")
+      ? URL.createObjectURL(item.file)
+      : null;
   }, [item.file]);
 
   const displayName = item.customName || item.file.name;
   const inputExt = item.file.name.split(".").pop()?.toLowerCase();
   const inputType = item.file.type.split("/")[0];
-
-  const targetType =
-    item.availableOptions.find((o) => o.id === item.format)?.category ||
-    "image";
+  const targetOption = item.availableOptions.find((o) => o.id === item.format);
+  const targetType = targetOption?.category || "image";
 
   const isImageOutput = targetType === "Image";
   const isVideoOutput =
     ["mp4", "mkv", "webm", "mov"].includes(item.format?.replace("to-", "")) &&
-    item.availableOptions.find((o) => o.id === item.format)?.category ===
-      "Audio / Video";
+    targetType === "Audio / Video";
   const isAudioOutput =
     ["mp3", "wav", "aac", "flac"].includes(item.format?.replace("to-", "")) &&
-    item.availableOptions.find((o) => o.id === item.format)?.category ===
-      "Audio / Video";
+    targetType === "Audio / Video";
 
   const showQuality = isImageOutput || isVideoOutput;
-  const showTransforms = isImageOutput;
-  const showDimensions = isImageOutput;
-  const showAspectRatio = isImageOutput;
   const showMultiSize = isImageOutput && inputType === "image";
   const showAudioSettings =
     isAudioOutput ||
@@ -142,6 +132,48 @@ export const FileCard = ({
     (opt) => opt.targetExt.toLowerCase() !== inputExt,
   );
 
+  const getCompareUrl = () => {
+    return item.downloadUrl?.startsWith("blob:")
+      ? item.downloadUrl
+      : `${item.downloadUrl}${item.downloadUrl?.includes("?") ? "&" : "?"}preview=1`;
+  };
+
+  const renderPreview = () => {
+    if (workerPreviewUrl || (previewUrl && !imageError)) {
+      return (
+        <>
+          <img
+            src={workerPreviewUrl || previewUrl}
+            alt="preview"
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+          {item.status === "success" && !item.settings.multiSize && (
+            <button
+              onClick={() =>
+                onCompare({
+                  original: previewUrl,
+                  converted: getCompareUrl(),
+                })
+              }
+              className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+            >
+              <Eye size={18} />
+            </button>
+          )}
+        </>
+      );
+    }
+
+    if (inputType === "audio")
+      return <Music className="w-6 h-6 sm:w-8 sm:h-8" />;
+    if (inputType === "video")
+      return <Video className="w-6 h-6 sm:w-8 sm:h-8" />;
+    if (inputType === "image" || imageError)
+      return <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />;
+    return <FileIcon className="w-6 h-6 sm:w-8 sm:h-8" />;
+  };
+
   return (
     <div
       className={`
@@ -153,46 +185,10 @@ export const FileCard = ({
       `}
     >
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        {/* Preview / Icon */}
         <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-[24px] flex items-center justify-center overflow-hidden bg-white/50 group relative shrink-0">
-          {workerPreviewUrl || (previewUrl && !imageError) ? (
-            <>
-              <img
-                src={workerPreviewUrl || previewUrl}
-                alt="preview"
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
-              {item.status === "success" && !item.settings.multiSize && (
-                <button
-                  onClick={() =>
-                    onCompare({
-                      original: previewUrl,
-                      converted: `${item.downloadUrl}&preview=1`,
-                    })
-                  }
-                  className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                >
-                  <Eye size={18} />
-                </button>
-              )}
-            </>
-          ) : (
-            <div className="text-gray-800 opacity-100">
-              {inputType === "audio" ? (
-                <Music className="w-6 h-6 sm:w-8 sm:h-8" />
-              ) : inputType === "video" ? (
-                <Video className="w-6 h-6 sm:w-8 sm:h-8" />
-              ) : inputType === "image" || imageError ? (
-                <ImageIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-              ) : (
-                <FileIcon className="w-6 h-6 sm:w-8 sm:h-8" />
-              )}
-            </div>
-          )}
+          {renderPreview()}
         </div>
 
-        {/* Info Section */}
         <div className="flex-grow min-w-0 w-full sm:w-auto">
           <div className="flex items-center justify-between mb-1">
             <div className="flex-grow min-w-0">
@@ -225,14 +221,17 @@ export const FileCard = ({
               ) : (
                 <div
                   className="group/name cursor-pointer inline-flex items-center gap-2 max-w-full"
-                  onClick={() => (setTempName(displayName), setIsEditing(true))}
+                  onClick={() => {
+                    setTempName(displayName);
+                    setIsEditing(true);
+                  }}
                 >
                   <p className="text-xs sm:text-sm font-medium text-gray-800 truncate tracking-tight">
                     {displayName}
                   </p>
                   <PencilLine
-                    size={10}
                     className="text-gray-600 group-hover/name:text-gray-800 transition-colors shrink-0"
+                    size={10}
                   />
                 </div>
               )}
@@ -246,10 +245,24 @@ export const FileCard = ({
                     • {item.metadata.width}×{item.metadata.height}
                   </span>
                 )}
+                {item.elapsedTime && (
+                  <span className="text-[10px] font-bold text-mascot-orange bg-mascot-orange/5 px-1.5 py-0.5 rounded-md ml-1 inline-flex items-center gap-1 border border-mascot-orange/10">
+                    {item.elapsedTime}s
+                    {item.modeUsed && (
+                      <span className="opacity-60 font-medium border-l border-mascot-orange/20 pl-1 ml-0.5 text-[9px] uppercase tracking-tighter">
+                        {item.modeUsed}
+                      </span>
+                    )}
+                  </span>
+                )}
+                {item.status === "error" && (
+                  <span className="text-[10px] font-bold text-mascot-red bg-mascot-red/5 px-1.5 py-0.5 rounded-md ml-1 uppercase tracking-tighter border border-mascot-red/10">
+                    Failed {item.modeUsed && `• ${item.modeUsed}`}
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Format Selector */}
             <div className="shrink-0 ml-2">
               {item.status === "idle" ? (
                 <div className="relative" ref={dropdownRef}>
@@ -273,11 +286,7 @@ export const FileCard = ({
 
                   {showFormatDropdown && (
                     <div
-                      className={`
-                        absolute right-0 min-w-[100px] w-fit bg-white/95 backdrop-blur-3xl border border-white/60 rounded-xl z-[1000] p-1
-                        overflow-hidden whitespace-nowrap shadow-sm shadow-black/5
-                        ${openUpward ? "bottom-full mb-1.5 origin-bottom-right animate-dropdown-up" : "top-full mt-1.5 origin-top-right animate-dropdown"}
-                      `}
+                      className={`absolute right-0 min-w-[100px] w-fit bg-white/95 backdrop-blur-3xl border border-white/60 rounded-xl z-[1000] p-1 overflow-hidden whitespace-nowrap shadow-sm shadow-black/5 ${openUpward ? "bottom-full mb-1.5 origin-bottom-right animate-dropdown-up" : "top-full mt-1.5 origin-top-right animate-dropdown"}`}
                     >
                       {filteredOptions.length > 0 ? (
                         <div className="flex flex-col gap-0.5">
@@ -325,10 +334,7 @@ export const FileCard = ({
             </div>
           </div>
 
-          {/* Progress Bar */}
-          {(item.status === "converting" ||
-            item.status === "uploading" ||
-            item.status === "success") && (
+          {["converting", "uploading", "success"].includes(item.status) && (
             <div className="mt-2 mb-1">
               <div className="flex justify-between items-center mb-1">
                 <span
@@ -341,14 +347,14 @@ export const FileCard = ({
                       : "Processing..."}
                 </span>
                 <span
-                  className={`text-[10px] font-medium ${item.status === "success" ? "text-gray-600" : "text-gray-500"}`}
+                  className={`text-[10px] font-medium ${item.status === "success" ? "text-mascot-orange" : "text-gray-500"}`}
                 >
                   {Math.floor(visualProgress)}%
                 </span>
               </div>
               <div className="h-1 w-full bg-black/[0.03] rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-gray-500" : "bg-gray-300"}`}
+                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-mascot-orange" : "bg-gradient-to-r from-mascot-yellow to-mascot-orange shadow-[0_0_8px_rgba(255,140,0,0.4)]"}`}
                   style={{ width: `${visualProgress}%` }}
                 />
               </div>
@@ -365,7 +371,6 @@ export const FileCard = ({
           )}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex flex-row sm:flex-col items-center gap-1.5 sm:gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-between sm:justify-end mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-black/[0.03] sm:border-t-0">
           {item.status === "success" ? (
             <>
@@ -375,7 +380,7 @@ export const FileCard = ({
                     onClick={() =>
                       onCompare({
                         original: previewUrl,
-                        converted: `${item.downloadUrl}&preview=1`,
+                        converted: getCompareUrl(),
                       })
                     }
                     className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
@@ -394,8 +399,7 @@ export const FileCard = ({
               </div>
               <a
                 href={item.downloadUrl}
-                download
-                aria-label={`Download ${displayName}`}
+                download={item.outputName || displayName}
                 className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all flex items-center justify-center"
               >
                 <Download size={14} className="sm:w-[16px] sm:h-[16px]" />
@@ -407,7 +411,6 @@ export const FileCard = ({
                 {item.status === "idle" && (
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    aria-label="Toggle settings"
                     className={`p-1.5 sm:p-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
                   >
                     <Settings2
@@ -419,7 +422,6 @@ export const FileCard = ({
                 {item.status === "converting" && (
                   <button
                     onClick={() => onCancel(item.id)}
-                    aria-label="Cancel conversion"
                     className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                   >
                     <Square
@@ -429,24 +431,29 @@ export const FileCard = ({
                     />
                   </button>
                 )}
-                {item.status !== "converting" && (
+                {item.status === "error" && (
                   <button
-                    onClick={() => onRemove(item.id)}
-                    aria-label="Remove file"
-                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group/trash"
+                    onClick={() => onConvert(item.id)}
+                    className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all"
+                    title="Retry"
                   >
-                    <Trash2
-                      size={16}
-                      className="sm:w-[18px] sm:h-[18px] transition-colors"
-                    />
+                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
                   </button>
                 )}
+                <button
+                  onClick={() => onRemove(item.id)}
+                  className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group/trash"
+                >
+                  <Trash2
+                    size={16}
+                    className="sm:w-[18px] sm:h-[18px] transition-colors"
+                  />
+                </button>
               </div>
               {item.status === "idle" && (
                 <button
                   onClick={() => onConvert(item.id)}
-                  aria-label="Start conversion"
-                  className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all active:scale-95 group/play"
+                  className="p-2 sm:p-2.5 bg-mascot-orange hover:bg-mascot-orange/90 text-white rounded-full transition-all active:scale-95 group/play shadow-lg shadow-mascot-orange/20"
                 >
                   <Play
                     size={14}
@@ -470,9 +477,9 @@ export const FileCard = ({
             isVideoOutput={isVideoOutput}
             showAudioSettings={showAudioSettings}
             showVideoToImage={showVideoToImage}
-            showAspectRatio={showAspectRatio}
-            showDimensions={showDimensions}
-            showTransforms={showTransforms}
+            showAspectRatio={true}
+            showDimensions={showQuality}
+            showTransforms={isImageOutput}
             showMultiSize={showMultiSize}
           />
         </div>

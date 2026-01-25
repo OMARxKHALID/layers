@@ -54,9 +54,9 @@ export const DropZone = ({ onFilesSelect, disabled }) => {
         aria-label="Upload files"
         className={`
           glass-card
-          relative w-full max-w-xl h-[240px] md:h-[300px] rounded-[24px] md:rounded-[32px] flex flex-col items-center justify-center
+          relative w-full max-w-2xl h-[280px] md:h-[380px] rounded-[32px] md:rounded-[40px] flex flex-col items-center justify-center
           cursor-pointer transition-all duration-500 ease-out outline-none focus-visible:ring-2 focus-visible:ring-black/20
-          ${isDragging ? "bg-white/50 scale-[1.01] ring-2 ring-white/50" : "hover:bg-white/45"}
+          ${isDragging ? "bg-white/80 scale-[1.01] ring-2 ring-white/50" : ""}
           ${disabled ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}
         `}
       >
@@ -73,16 +73,18 @@ export const DropZone = ({ onFilesSelect, disabled }) => {
           <div
             className={`
             w-12 h-12 md:w-16 md:h-16 flex items-center justify-center rounded-xl md:rounded-2xl
-            bg-white/20 border border-white/60
+            bg-mascot-orange/10 border border-mascot-orange/30 shadow-2xl shadow-mascot-orange/10
             transition-all duration-500
-            ${isDragging ? "bg-white/60" : ""}
+            ${isDragging ? "bg-mascot-orange/20 scale-110 border-mascot-red/50" : ""}
           `}
           >
-            <Upload className="text-gray-900 w-6 h-6 md:w-7 md:h-7" />
+            <Upload
+              className={`w-6 h-6 md:w-7 md:h-7 transition-colors duration-500 ${isDragging ? "text-mascot-red" : "text-mascot-orange"}`}
+            />
           </div>
 
           <div className="space-y-1 md:space-y-2">
-            <p className="text-lg md:text-2xl text-gray-800 font-medium tracking-tight font-[family-name:var(--font-pixelify-sans)]">
+            <p className="text-lg md:text-2xl text-mascot-orange font-bold tracking-tight font-[family-name:var(--font-pixelify-sans)]">
               Drop to Transform
             </p>
             <p className="text-xs md:text-sm text-gray-500 leading-relaxed max-w-[200px] md:max-w-[260px] mx-auto font-normal">

@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
+import dynamic from "next/dynamic";
+import { Plus } from "lucide-react";
 import { AppState, CONVERSION_OPTIONS } from "@/lib/config";
 import { getMimeType } from "@/utils/file-utils";
 import { getFileMetadata, suggestFormat } from "@/utils/media-utils";
@@ -9,13 +11,11 @@ import { useToasts } from "@/hooks/useToasts";
 import { useQueue } from "@/hooks/useQueue";
 import { useConversion } from "@/hooks/useConversion";
 import { useGlobalDrag } from "@/hooks/useGlobalDrag";
-
+import { useSettings } from "@/hooks/useSettings";
 import { Header } from "@/components/header";
 import { ToastContainer } from "@/components/toast";
 import { HeroSection } from "@/components/hero-section";
 import { TransformationWorkspace } from "@/components/transformation-workspace";
-import { Plus } from "lucide-react";
-import dynamic from "next/dynamic";
 
 const HistoryModal = dynamic(() =>
   import("@/components/history-modal").then((mod) => mod.HistoryModal),
@@ -25,16 +25,15 @@ const CompareView = dynamic(() =>
 );
 
 export default function Home() {
+  const { executionMode, updateExecutionMode } = useSettings();
   const [showHistory, setShowHistory] = useState(false);
   const [activeCompare, setActiveCompare] = useState(null);
 
   const pendingActionFormat = useRef(null);
   const addMoreInputRef = useRef(null);
 
-  // 1. Toast Logic
   const { toasts, addToast } = useToasts();
 
-  // 2. Queue & History Logic
   const {
     appState,
     setAppState,
@@ -48,62 +47,56 @@ export default function Home() {
     clearHistory,
   } = useQueue(addToast);
 
-  // 3. File Selection Logic
+  const processFile = async (file, pendingFormat) => {
+    const mime = getMimeType(file);
+    const options = CONVERSION_OPTIONS.filter((opt) =>
+      opt.accepts.includes(mime),
+    );
+
+    if (options.length === 0) return null;
+
+    const format = pendingFormat || suggestFormat(mime, file) || options[0].id;
+    const metadata = await getFileMetadata(file);
+
+    return {
+      id: crypto.randomUUID(),
+      jobId: null,
+      file,
+      status: "idle",
+      progress: 0,
+      format,
+      availableOptions: options,
+      downloadUrl: null,
+      customName: file.name,
+      metadata,
+      settings: {
+        quality: 100,
+        grayscale: false,
+        rotation: 0,
+        scale: 100,
+        aspectRatio: "original",
+        flip: false,
+        flop: false,
+        multiSize: false,
+        fps: null,
+        audioBitrate: "192k",
+        frameOffset: 0,
+      },
+    };
+  };
+
   const handleFilesSelect = useCallback(
     async (files) => {
-      const invalidFiles = [];
-      const validItems = [];
-
-      await Promise.all(
-        files.map(async (file) => {
-          const mime = getMimeType(file);
-          const options = CONVERSION_OPTIONS.filter((opt) =>
-            opt.accepts.includes(mime),
-          );
-
-          if (options.length === 0) {
-            invalidFiles.push(file);
-            return;
-          }
-
-          const format =
-            pendingActionFormat.current ||
-            suggestFormat(mime, file) ||
-            options[0].id;
-
-          const metadata = await getFileMetadata(file);
-
-          validItems.push({
-            id: crypto.randomUUID(),
-            jobId: null,
-            file,
-            status: "idle",
-            progress: 0,
-            format,
-            availableOptions: options,
-            downloadUrl: null,
-            customName: file.name,
-            metadata,
-            settings: {
-              quality: 100,
-              grayscale: false,
-              rotation: 0,
-              scale: 100,
-              aspectRatio: "original",
-              flip: false,
-              flop: false,
-              multiSize: false,
-              fps: null,
-              audioBitrate: "192k",
-              frameOffset: 0,
-            },
-          });
-        }),
+      const results = await Promise.all(
+        files.map((file) => processFile(file, pendingActionFormat.current)),
       );
 
-      if (invalidFiles.length > 0) {
+      const validItems = results.filter(Boolean);
+      const invalidCount = files.length - validItems.length;
+
+      if (invalidCount > 0) {
         addToast(
-          `${invalidFiles.length} file(s) skipped (unsupported or too large)`,
+          `${invalidCount} file(s) skipped (unsupported or too large)`,
           "error",
         );
       }
@@ -119,18 +112,15 @@ export default function Home() {
     [addToast, setQueue, setAppState],
   );
 
-  // 4. Conversion & Processing Logic
   const {
     isProcessing,
     handleConvertItem,
     handleConvertAll,
     handleCancelItem,
-  } = useConversion(queue, updateItem, addToast, addToHistory);
+  } = useConversion(queue, updateItem, addToast, addToHistory, executionMode);
 
-  // 5. Drag & Drop Logic
   const { isGlobalDragging } = useGlobalDrag(handleFilesSelect);
 
-  // 6. Bulk Actions Logic
   const { downloadAsZip, progress: zipProgress } = useZipDownload({
     zipFileName: "Layers_bundle.zip",
   });
@@ -159,22 +149,28 @@ export default function Home() {
     }
   };
 
-  const allSuccess = queue.length && queue.every((q) => q.status === "success");
+  const allSuccess =
+    queue.length > 0 && queue.every((q) => q.status === "success");
 
   return (
     <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative selection:bg-black/5">
       {isGlobalDragging && (
-        <div className="fixed inset-0 z-[2000] bg-white/40 backdrop-blur-xl m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid border border-white/40">
-          <div className="w-20 h-20 bg-white/60 rounded-full flex items-center justify-center mb-6 border border-white/60">
-            <Plus size={40} className="text-gray-800" strokeWidth={1.5} />
+        <div className="fixed inset-0 z-[2000] bg-mascot-orange/15 backdrop-blur-xl m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid border border-mascot-orange/30 shadow-2xl glass-panel">
+          <div className="w-24 h-24 bg-white/70 backdrop-blur-md rounded-full flex items-center justify-center mb-6 border-4 border-mascot-orange/20 shadow-xl shadow-mascot-orange/10 animate-bounce">
+            <Plus size={48} className="text-mascot-red" strokeWidth={2.5} />
           </div>
-          <p className="text-xl md:text-2xl font-medium text-gray-800 tracking-tight">
+          <p className="text-2xl md:text-4xl font-bold text-mascot-orange tracking-tight font-[family-name:var(--font-pixelify-sans)] drop-shadow-sm">
             Drop to Transform
           </p>
         </div>
       )}
       <ToastContainer toasts={toasts} />
-      <Header onReset={resetQueue} onOpenHistory={() => setShowHistory(true)} />
+      <Header
+        onReset={resetQueue}
+        onOpenHistory={() => setShowHistory(true)}
+        executionMode={executionMode}
+        onToggleMode={updateExecutionMode}
+      />
 
       <main className="flex-grow flex flex-col items-center px-4 md:px-6 relative z-10 overflow-hidden pb-6">
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden">
@@ -196,6 +192,7 @@ export default function Home() {
               onCompare={(data) => setActiveCompare(data)}
               addMoreInputRef={addMoreInputRef}
               handleFilesSelect={handleFilesSelect}
+              zipProgress={zipProgress}
             />
           )}
         </div>

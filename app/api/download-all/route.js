@@ -9,9 +9,20 @@ import { Writable } from "stream";
 export async function POST(request) {
   try {
     await ensureDirs();
-    const { items } = await request.json();
+    const formData = await request.formData();
+    const files = formData.getAll("files");
+    const serverItemsJson = formData.get("serverItems");
+    let serverItems = [];
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
+    if (serverItemsJson) {
+      try {
+        serverItems = JSON.parse(serverItemsJson);
+      } catch (e) {
+        console.error("Failed to parse serverItems", e);
+      }
+    }
+
+    if (files.length === 0 && serverItems.length === 0) {
       return NextResponse.json({ error: "No items provided" }, { status: 400 });
     }
 
@@ -37,7 +48,15 @@ export async function POST(request) {
 
     archive.pipe(writable);
 
-    for (const item of items) {
+    // 1. Process Client-Uploaded Files (Blobs)
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      archive.append(buffer, { name: file.name });
+      fileCount++;
+    }
+
+    // 2. Process Server-Side Files
+    for (const item of serverItems) {
       if (!item.jobId) continue;
 
       const job = await getJob(item.jobId);

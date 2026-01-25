@@ -3,7 +3,6 @@ import { getJob, ensureDirs } from "@/utils/server-utils";
 
 export async function GET(request, { params }) {
   try {
-    await ensureDirs();
     const { id } = await params;
 
     if (!id) {

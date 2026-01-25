@@ -1,10 +1,10 @@
 import { writeFile, readFile, unlink, mkdir, readdir, stat } from "fs/promises";
 import { existsSync, createWriteStream } from "fs";
 import { join, basename } from "path";
-import { tmpdir } from "os";
+import { tmpdir, cpus } from "os";
 import archiver from "archiver";
-import { pipeline } from "stream/promises";
 import { ConverterFactory } from "../lib/converters";
+import { logger } from "../lib/logger";
 
 export const TEMP_DIR = join(tmpdir(), "layers_data");
 export const UPLOAD_DIR = join(TEMP_DIR, "uploads");
@@ -12,26 +12,26 @@ export const OUTPUT_DIR = join(TEMP_DIR, "outputs");
 export const JOBS_DIR = join(TEMP_DIR, "jobs");
 
 const CLEANUP_MAX_AGE = 60 * 60 * 1000;
+const MAX_CONCURRENT_JOBS = Math.max(1, cpus().length - 1);
+const RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 100;
 
-// Store active processes for cancellation
 const activeProcesses = new Map();
-
-// --- Queue Management ---
 const jobQueue = [];
 let activeJobCount = 0;
-const MAX_CONCURRENT_JOBS = 10; // Increased for serverless concurrency
 let isInitialized = false;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function ensureDirs() {
   await Promise.all([
-    !existsSync(UPLOAD_DIR) && mkdir(UPLOAD_DIR, { recursive: true }),
-    !existsSync(OUTPUT_DIR) && mkdir(OUTPUT_DIR, { recursive: true }),
-    !existsSync(JOBS_DIR) && mkdir(JOBS_DIR, { recursive: true }),
+    mkdir(UPLOAD_DIR, { recursive: true }),
+    mkdir(OUTPUT_DIR, { recursive: true }),
+    mkdir(JOBS_DIR, { recursive: true }),
   ]);
 }
 
 export async function saveJob(job) {
-  // Don't save transient internal properties like onCommand
   const { onCommand, ...serializableJob } = job;
   await writeFile(
     join(JOBS_DIR, `${job.id}.json`),
@@ -39,34 +39,22 @@ export async function saveJob(job) {
   );
 }
 
-// Helper to wait
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 export async function getJob(id) {
   const filePath = join(JOBS_DIR, `${id}.json`);
-  const legacyFilePath = join(tmpdir(), "morpho_data", "jobs", `${id}.json`);
-
-  // Retry logic for potential race conditions
-  for (let i = 0; i < 3; i++) {
+  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
     try {
       if (existsSync(filePath)) {
         return JSON.parse(await readFile(filePath, "utf-8"));
       }
-      // Fallback for transition period
-      if (existsSync(legacyFilePath)) {
-        return JSON.parse(await readFile(legacyFilePath, "utf-8"));
-      }
     } catch {
-      // Ignore error and retry
+      if (attempt < RETRY_ATTEMPTS - 1) await sleep(RETRY_DELAY);
     }
-    if (i < 2) await sleep(100);
   }
   return null;
 }
 
 export async function cancelJob(id) {
-  // 1. Remove from queue if pending
-  const queueIndex = jobQueue.findIndex((j) => j === id); // Fix: jobQueue is array of IDs
+  const queueIndex = jobQueue.indexOf(id);
   if (queueIndex !== -1) {
     jobQueue.splice(queueIndex, 1);
     const job = await getJob(id);
@@ -77,7 +65,6 @@ export async function cancelJob(id) {
     return true;
   }
 
-  // 2. Handle active process
   const proc = activeProcesses.get(id);
   if (proc) {
     if (proc.kill) proc.kill("SIGTERM");
@@ -85,16 +72,12 @@ export async function cancelJob(id) {
     activeProcesses.delete(id);
   }
 
-  // 3. Mark as cancelled in DB regardless
-  // This ensures that even if the process finishes purely by timing,
-  // the final check in triggerNextJob will see it was cancelled.
   const job = await getJob(id);
   if (job) {
     job.status = "cancelled";
     await saveJob(job);
     return true;
   }
-
   return false;
 }
 
@@ -138,9 +121,7 @@ export async function restoreQueue() {
       if (!file.endsWith(".json")) continue;
       try {
         const job = JSON.parse(await readFile(join(JOBS_DIR, file), "utf-8"));
-        // If it was pending or processing (interrupted), re-queue it
         if (job.status === "pending" || job.status === "processing") {
-          // Reset status to pending so it can be picked up safely
           job.status = "pending";
           job.progress = 0;
           await saveJob(job);
@@ -149,19 +130,44 @@ export async function restoreQueue() {
       } catch {}
     }
 
-    // Sort by creation time to maintain order
     pendingJobs.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    pendingJobs.forEach((job) => jobQueue.push(job.id));
 
-    for (const job of pendingJobs) {
-      jobQueue.push(job.id);
-    }
-
-    console.log(`Restored ${pendingJobs.length} jobs from disk.`);
+    logger.info("Restored jobs from disk", { count: pendingJobs.length });
     isInitialized = true;
     triggerNextJob();
   } catch (err) {
-    console.error("Queue restoration failed:", err);
+    logger.error("Queue restoration failed", err);
   }
+}
+
+async function createZipFromFiles(outputFiles, outputPath) {
+  const outputStream = createWriteStream(outputPath);
+  const archive = archiver("zip", { zlib: { level: 9 } });
+
+  const zipFinished = new Promise((resolve, reject) => {
+    outputStream.on("close", resolve);
+    archive.on("error", reject);
+  });
+
+  archive.pipe(outputStream);
+  outputFiles.forEach((file) => archive.file(file, { name: basename(file) }));
+  await archive.finalize();
+  await zipFinished;
+}
+
+async function handleJobCompletion(job, result) {
+  if (result?.outputFiles?.length > 1) {
+    job.targetExt = "zip";
+    const newOutputPath = job.outputFile.replace(/\.[^.]+$/, ".zip");
+    job.outputFile = newOutputPath;
+    await createZipFromFiles(result.outputFiles, newOutputPath);
+    await Promise.all(result.outputFiles.map((f) => unlink(f).catch(() => {})));
+  }
+
+  job.progress = 100;
+  job.status = "done";
+  await saveJob(job);
 }
 
 async function triggerNextJob() {
@@ -177,8 +183,6 @@ async function triggerNextJob() {
     return;
   }
 
-  const settings = job.settings || {};
-
   try {
     job.status = "processing";
     job.progress = 5;
@@ -188,84 +192,42 @@ async function triggerNextJob() {
       job.inputFile,
       job.targetExt,
     );
+    job.onCommand = (proc) => activeProcesses.set(job.id, proc);
 
-    // Add hook to capture process for cancellation
-    job.onCommand = (proc) => {
-      activeProcesses.set(job.id, proc);
-    };
+    const startTime = Date.now();
+    const result = await converter.convert(
+      job,
+      job.settings || {},
+      async (progress) => {
+        job.progress = progress;
+        await saveJob(job);
+      },
+    );
 
-    const result = await converter.convert(job, settings, async (p) => {
-      // Optimistic progress update, but check cancel status periodically if needed
-      // (Optimization: In a real heavy app we'd check DB here, but let's rely on final check)
-      job.progress = p;
-      await saveJob(job);
+    logger.info("Job completed", {
+      jobId: job.id,
+      durationMs: Date.now() - startTime,
     });
-
     activeProcesses.delete(job.id);
 
-    // CRITICAL FIX: Reload job from disk to check if it was cancelled externally
-    // while we were awaiting the conversion.
     const freshJob = await getJob(job.id);
-    if (freshJob && freshJob.status === "cancelled") {
-      // It was cancelled! Do not overwrite with success.
-      // Cleanup any partial outputs
-      if (result && result.outputFiles) {
-        for (const f of result.outputFiles) await unlink(f).catch(() => {});
-      } else {
-        await unlink(job.outputFile).catch(() => {});
-      }
-      // job is already saved as cancelled by cancelJob
+    if (freshJob?.status === "cancelled") {
+      const files = result?.outputFiles || [job.outputFile];
+      await Promise.all(files.map((f) => unlink(f).catch(() => {})));
     } else if (result === "cancelled") {
-      // Internal cancellation detection (e.g. ffmpeg error)
       job.status = "cancelled";
       job.progress = 0;
       await saveJob(job);
     } else {
-      // Handle multi-file results (zip them)
-      if (result && result.outputFiles && result.outputFiles.length > 1) {
-        // Update job to be a zip
-        job.targetExt = "zip";
-        const newOutputPath = job.outputFile.replace(/\.[^.]+$/, ".zip");
-        job.outputFile = newOutputPath;
-
-        const outputStream = createWriteStream(newOutputPath);
-        const archive = archiver("zip", { zlib: { level: 9 } });
-
-        const zipFinished = new Promise((resolve, reject) => {
-          outputStream.on("close", resolve);
-          archive.on("error", reject);
-        });
-
-        archive.pipe(outputStream);
-
-        for (const filePath of result.outputFiles) {
-          archive.file(filePath, { name: basename(filePath) });
-        }
-
-        await archive.finalize();
-        await zipFinished;
-
-        // Cleanup individual files
-        for (const filePath of result.outputFiles) {
-          await unlink(filePath).catch(() => {});
-        }
-      }
-
-      job.progress = 100;
-      job.status = "done";
-      await saveJob(job);
+      await handleJobCompletion(job, result);
     }
 
-    // Cleanup input
     await unlink(job.inputFile).catch(() => {});
   } catch (error) {
     activeProcesses.delete(job.id);
-
-    // Check if cancellation happened during error
     const freshJob = await getJob(job.id);
-    if (freshJob && freshJob.status === "cancelled") {
-      // Ignore error, it was cancelled
-    } else {
+    if (freshJob?.status !== "cancelled") {
+      logger.error("Job failed", error, { jobId: job.id });
       job.status = "error";
       job.error = error.message;
       await saveJob(job);

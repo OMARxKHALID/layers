@@ -13,10 +13,7 @@ export function useZipDownload(options = {}) {
   const [isDownloading, setIsDownloading] = useState(false);
 
   const reset = useCallback(() => {
-    setProgress({
-      status: "idle",
-      error: null,
-    });
+    setProgress({ status: "idle", error: null });
     setIsDownloading(false);
   }, []);
 
@@ -31,10 +28,30 @@ export function useZipDownload(options = {}) {
       setProgress({ status: "zipping", error: null });
 
       try {
+        const formData = new FormData();
+        const serverItems = [];
+
+        for (const item of items) {
+          if (item.downloadUrl?.startsWith("blob:")) {
+            try {
+              const res = await fetch(item.downloadUrl);
+              const blob = await res.blob();
+              formData.append("files", blob, item.fileName);
+            } catch (e) {
+              console.warn("Failed to fetch local blob", item);
+            }
+          } else if (item.jobId) {
+            serverItems.push(item);
+          }
+        }
+
+        if (serverItems.length > 0) {
+          formData.append("serverItems", JSON.stringify(serverItems));
+        }
+
         const response = await fetch("/api/download-all", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ items }),
+          body: formData,
         });
 
         if (!response.ok) {
@@ -43,18 +60,15 @@ export function useZipDownload(options = {}) {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
           } catch (e) {
-            // Not JSON
+            /* ignore non-json */
           }
           throw new Error(errorMsg);
         }
 
         const blob = await response.blob();
-        if (blob.size === 0) {
-          throw new Error("Received empty archive");
-        }
+        if (blob.size === 0) throw new Error("Received empty archive");
 
         const blobUrl = URL.createObjectURL(blob);
-
         const link = document.createElement("a");
         link.href = blobUrl;
         link.download = zipFileName;
@@ -63,7 +77,6 @@ export function useZipDownload(options = {}) {
         link.click();
         document.body.removeChild(link);
 
-        // Cleanup
         setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
 
         const successState = { status: "done", error: null };
@@ -83,12 +96,7 @@ export function useZipDownload(options = {}) {
     [zipFileName],
   );
 
-  return {
-    downloadAsZip,
-    progress,
-    isDownloading,
-    reset,
-  };
+  return { downloadAsZip, progress, isDownloading, reset };
 }
 
 export default useZipDownload;

@@ -1,6 +1,6 @@
 import React from "react";
 import { QueueList } from "./queue-list";
-import { PlayCircle, Archive } from "lucide-react";
+import { PlayCircle, Archive, Download, Loader2 } from "lucide-react";
 
 export const TransformationWorkspace = ({
   queue,
@@ -17,7 +17,10 @@ export const TransformationWorkspace = ({
   onCompare,
   addMoreInputRef,
   handleFilesSelect,
+  zipProgress,
 }) => {
+  const isZipping = zipProgress?.status === "zipping";
+
   return (
     <div className="glass-panel w-full rounded-[30px] md:rounded-[40px] p-4 md:p-8 flex flex-col h-[85vh] max-h-[850px] mb-6 animate-liquid relative isolate">
       <div className="flex items-center justify-between mb-6 flex-shrink-0 pl-1 pr-2">
@@ -71,10 +74,23 @@ export const TransformationWorkspace = ({
           <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3 w-full animate-soft sm:flex-nowrap">
             <button
               onClick={onDownloadAll}
-              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-gray-900 hover:bg-black text-white rounded-full transition-all font-medium text-sm sm:text-base active:scale-95"
+              disabled={isZipping}
+              className="flex items-center justify-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-mascot-orange hover:bg-mascot-orange/90 disabled:opacity-70 disabled:cursor-wait text-white rounded-full transition-all font-bold text-sm sm:text-base active:scale-95 shadow-lg shadow-mascot-orange/20"
             >
-              <Archive size={18} />
-              <span>Save All</span>
+              {isZipping ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : queue.length === 1 ? (
+                <Download size={18} />
+              ) : (
+                <Archive size={18} />
+              )}
+              <span>
+                {isZipping
+                  ? "Zipping..."
+                  : queue.length === 1
+                    ? "Save"
+                    : "Save All"}
+              </span>
             </button>
             <button
               onClick={onResetQueue}
@@ -96,7 +112,7 @@ export const TransformationWorkspace = ({
           <div className="flex justify-center w-full animate-soft">
             <button
               onClick={onConvertAll}
-              className="px-10 py-3 bg-gray-900 hover:bg-black text-white rounded-full transition-all font-medium text-sm sm:text-base flex items-center gap-2 active:scale-95 hover:shadow-lg hover:shadow-black/10"
+              className="px-10 py-3 bg-mascot-orange hover:bg-mascot-orange/90 text-white rounded-full transition-all font-bold text-sm sm:text-base flex items-center gap-2 active:scale-95 hover:shadow-xl hover:shadow-mascot-orange/25"
             >
               <span>Convert Files</span>
               <PlayCircle size={18} />

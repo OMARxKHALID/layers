@@ -2,20 +2,31 @@
 
 import { useState, useCallback } from "react";
 import { getFriendlyErrorMessage } from "@/utils/error-utils";
+import { ClientConverterFactory } from "@/lib/client-converters";
+import { ExecutionMode } from "@/lib/config";
 
-export const useConversion = (queue, updateItem, addToast, addToHistory) => {
+const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_INTERVAL_MS = 1000;
+
+export const useConversion = (
+  queue,
+  updateItem,
+  addToast,
+  addToHistory,
+  executionMode,
+) => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const pollJobStatus = useCallback(
     (jobId, itemId) => {
       return new Promise((resolve, reject) => {
         const startTime = Date.now();
-        const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 
         const checkStatus = async () => {
-          if (Date.now() - startTime > TIMEOUT_MS) {
-            updateItem(itemId, { status: "error", errorMsg: "Timed out" });
-            reject(new Error("Conversion timed out"));
+          if (Date.now() - startTime > POLL_TIMEOUT_MS) {
+            const msg = "Conversion timed out";
+            updateItem(itemId, { status: "error", errorMsg: msg });
+            reject(new Error(msg));
             return;
           }
 
@@ -30,25 +41,29 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
 
             const data = await res.json();
 
-            if (data.status === "processing") {
-              updateItem(itemId, {
-                progress: Math.max(10, data.progress || 10),
-              });
-              setTimeout(checkStatus, 1000);
-            } else if (data.status === "done") {
-              resolve(data);
-            } else if (data.status === "cancelled") {
-              updateItem(itemId, { status: "idle", progress: 0 });
-              addToast("Conversion cancelled", "info");
-              resolve(null);
-            } else if (data.status === "error") {
-              const friendlyMsg = getFriendlyErrorMessage(data.error);
-              updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
-              addToast(friendlyMsg, "error");
-              reject(new Error(friendlyMsg));
-            } else {
-              // Fallback for pending or unknown states
-              setTimeout(checkStatus, 1000);
+            switch (data.status) {
+              case "processing":
+                updateItem(itemId, {
+                  progress: Math.max(10, data.progress || 10),
+                });
+                setTimeout(checkStatus, POLL_INTERVAL_MS);
+                break;
+              case "done":
+                resolve(data);
+                break;
+              case "cancelled":
+                updateItem(itemId, { status: "idle", progress: 0 });
+                addToast("Conversion cancelled", "info");
+                resolve(null);
+                break;
+              case "error":
+                const friendlyMsg = getFriendlyErrorMessage(data.error);
+                updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
+                addToast(friendlyMsg, "error");
+                reject(new Error(friendlyMsg));
+                break;
+              default:
+                setTimeout(checkStatus, POLL_INTERVAL_MS);
             }
           } catch (e) {
             reject(e);
@@ -61,77 +76,149 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
     [updateItem, addToast],
   );
 
+  const processClientConversion = async (item, startTime, modeLabel) => {
+    const targetExt = item.format.replace("to-", "");
+    const converter = ClientConverterFactory.getConverter(
+      item.file.name,
+      targetExt,
+    );
+
+    updateItem(item.id, { status: "uploading", progress: 0 });
+
+    const result = await converter.convert(
+      item.file,
+      targetExt,
+      item.settings,
+      (progress) => updateItem(item.id, { progress }),
+    );
+
+    const parts = item.customName.split(".");
+    const nameStem =
+      parts.length > 1 ? parts.slice(0, -1).join(".") : item.customName;
+    const newName = `${nameStem}.${result.targetExt}`;
+
+    const blob = await fetch(result.downloadUrl).then((r) => r.blob());
+    const downloadUrl = URL.createObjectURL(
+      new File([blob], newName, { type: blob.type }),
+    );
+
+    const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    const resultItem = {
+      ...item,
+      status: "success",
+      progress: 100,
+      downloadUrl,
+      outputName: newName,
+      elapsedTime,
+      modeUsed: modeLabel,
+    };
+
+    updateItem(item.id, resultItem);
+    addToast(`${newName} ready! (${elapsedTime}s)`, "success");
+    addToHistory(resultItem);
+  };
+
+  const processServerConversion = async (item, startTime, modeLabel) => {
+    updateItem(item.id, { status: "uploading", progress: 5 });
+
+    const formData = new FormData();
+    formData.append("file", item.file);
+    formData.append("conversionType", item.format);
+    formData.append("settings", JSON.stringify(item.settings));
+
+    const res = await fetch("/api/convert", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Upload failed");
+    }
+
+    const { jobId } = await res.json();
+    updateItem(item.id, {
+      jobId,
+      status: "converting",
+      progress: 10,
+    });
+
+    const data = await pollJobStatus(jobId, item.id);
+
+    if (data && data.status === "done") {
+      const targetExt =
+        data.targetExt ||
+        item.availableOptions.find((o) => o.id === item.format)?.targetExt ||
+        "file";
+      const parts = item.customName.split(".");
+      const nameStem =
+        parts.length > 1 ? parts.slice(0, -1).join(".") : item.customName;
+      const newName = `${nameStem}.${targetExt}`;
+      const downloadUrl = `${data.downloadUrl}?filename=${encodeURIComponent(newName)}`;
+
+      const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+      const resultItem = {
+        ...item,
+        jobId,
+        status: "success",
+        progress: 100,
+        downloadUrl,
+        outputName: newName,
+        elapsedTime,
+        modeUsed: modeLabel,
+      };
+
+      updateItem(item.id, resultItem);
+      addToast(`${newName} ready!`, "success");
+      addToHistory(resultItem);
+    }
+  };
+
   const handleConvertItem = useCallback(
     async (itemId) => {
-      // We need to find the item in the current queue
-      // Since this is inside a hook, we should be careful about stale 'queue'
-      // But usually this is called from an event handler where queue should be relatively fresh
       const item = queue.find((i) => i.id === itemId);
       if (!item || !item.format || isProcessing) return;
 
+      const startTime = Date.now();
+      const modeLabel =
+        executionMode === ExecutionMode.CLIENT ? "Device" : "Cloud";
+
       updateItem(itemId, {
-        status: "uploading",
+        status: "converting",
         progress: 5,
         errorMsg: undefined,
+        startTime,
+        modeUsed: modeLabel,
       });
 
       try {
-        const formData = new FormData();
-        formData.append("file", item.file);
-        formData.append("conversionType", item.format);
-        formData.append("settings", JSON.stringify(item.settings));
-
-        const res = await fetch("/api/convert", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || "Upload failed");
-        }
-
-        const { jobId } = await res.json();
-        updateItem(itemId, {
-          jobId,
-          status: "converting",
-          progress: 10,
-        });
-
-        const data = await pollJobStatus(jobId, itemId);
-
-        if (data && data.status === "done") {
-          const targetExt =
-            data.targetExt ||
-            item.availableOptions.find((o) => o.id === item.format)
-              ?.targetExt ||
-            "file";
-          const parts = item.customName.split(".");
-          const nameStem =
-            parts.length > 1 ? parts.slice(0, -1).join(".") : item.customName;
-          const newName = `${nameStem}.${targetExt}`;
-          const downloadUrl = `${data.downloadUrl}?filename=${encodeURIComponent(newName)}`;
-
-          const resultItem = {
-            ...item,
-            jobId,
-            status: "success",
-            progress: 100,
-            downloadUrl,
-            customName: newName,
-          };
-
-          updateItem(itemId, resultItem);
-          addToast(`${newName} ready!`, "success");
-          addToHistory(resultItem);
+        if (executionMode === ExecutionMode.CLIENT) {
+          await processClientConversion(item, startTime, modeLabel);
+        } else {
+          await processServerConversion(item, startTime, modeLabel);
         }
       } catch (err) {
         console.error("Conversion failed for", itemId, err);
         const friendlyMsg = getFriendlyErrorMessage(err);
-        updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
+        updateItem(itemId, {
+          status: "error",
+          errorMsg: friendlyMsg,
+          modeUsed: modeLabel,
+        });
+        addToast(friendlyMsg, "error");
       }
     },
-    [queue, isProcessing, updateItem, pollJobStatus, addToast, addToHistory],
+    [
+      queue,
+      isProcessing,
+      updateItem,
+      addToast,
+      addToHistory,
+      executionMode,
+      pollJobStatus,
+    ],
   );
 
   const handleConvertAll = useCallback(async () => {
@@ -141,30 +228,25 @@ export const useConversion = (queue, updateItem, addToast, addToHistory) => {
     if (!itemsToProcess.length) return;
 
     setIsProcessing(true);
-
-    // Trigger all items in parallel.
-    // The server-side queue management (MAX_CONCURRENT_JOBS = 3) will handle the throttling.
     await Promise.all(itemsToProcess.map((item) => handleConvertItem(item.id)));
-
     setIsProcessing(false);
   }, [queue, handleConvertItem]);
 
   const handleCancelItem = useCallback(
     async (itemId) => {
       const item = queue.find((i) => i.id === itemId);
-      if (!item || !item.jobId) {
-        updateItem(itemId, { status: "idle", progress: 0 });
-        return;
-      }
+      updateItem(itemId, { status: "idle", progress: 0 });
 
-      try {
-        await fetch(`/api/jobs/${item.jobId}/cancel`, { method: "POST" });
-        updateItem(itemId, { status: "idle", progress: 0, jobId: null });
-      } catch (e) {
-        addToast("Cancel failed", "error");
+      if (executionMode === ExecutionMode.SERVER && item?.jobId) {
+        try {
+          await fetch(`/api/jobs/${item.jobId}/cancel`, { method: "POST" });
+        } catch (e) {
+          // Ignore
+        }
       }
+      addToast("Conversion cancelled", "info");
     },
-    [queue, updateItem, addToast],
+    [queue, updateItem, addToast, executionMode],
   );
 
   return {

@@ -1,5 +1,6 @@
 import { Pixelify_Sans } from "next/font/google";
 import "./globals.css";
+import { SettingsProvider } from "@/hooks/useSettings";
 
 const pixelifySans = Pixelify_Sans({
   variable: "--font-pixelify-sans",
@@ -50,11 +51,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className={`${pixelifySans.variable} antialiased font-sans`}>
-        <div className="min-h-screen w-full relative overflow-hidden">
-          <div className="relative z-10 flex flex-col min-h-screen">
-            {children}
+        <SettingsProvider>
+          <div className="min-h-screen w-full relative overflow-hidden">
+            <div className="relative z-10 flex flex-col min-h-screen">
+              {children}
+            </div>
           </div>
-        </div>
+        </SettingsProvider>
       </body>
     </html>
   );

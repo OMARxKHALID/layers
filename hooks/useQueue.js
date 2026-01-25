@@ -21,13 +21,20 @@ export const useQueue = (addToast) => {
 
   useEffect(() => {
     const stored = localStorage.getItem("layers_history");
-    if (stored) setHistory(JSON.parse(stored));
+    if (stored) {
+      try {
+        setHistory(JSON.parse(stored));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
   }, []);
 
   const addToHistory = useCallback((item) => {
-    const targetExt =
-      item.availableOptions.find((o) => o.id === item.format)?.targetExt ||
-      "file";
+    const targetOption = item.availableOptions.find(
+      (o) => o.id === item.format,
+    );
+    const targetExt = targetOption?.targetExt || "file";
     const displayName = item.customName || item.file.name;
     const nameStem = displayName.split(".")[0];
 
@@ -52,11 +59,8 @@ export const useQueue = (addToast) => {
       prev.map((item) => {
         if (item.id !== id) return item;
 
-        // Only reset to idle if user CHANGED something but didn't provide a terminal status
         const isTerminalUpdate =
           updates.status === "success" || updates.status === "error";
-
-        // Don't reset if it's already a success item and only the name is changing
         const isNamingOnlyOnSuccess =
           item.status === "success" &&
           updates.customName &&
@@ -68,11 +72,14 @@ export const useQueue = (addToast) => {
           !isNamingOnlyOnSuccess &&
           (updates.format || updates.settings || updates.customName);
 
-        // If it's a success item and name changed, we need to update the downloadUrl too
         if (isNamingOnlyOnSuccess && item.downloadUrl) {
-          const url = new URL(item.downloadUrl, window.location.origin);
-          url.searchParams.set("filename", updates.customName);
-          updates.downloadUrl = url.pathname + url.search;
+          try {
+            const url = new URL(item.downloadUrl, window.location.origin);
+            url.searchParams.set("filename", updates.customName);
+            updates.downloadUrl = url.pathname + url.search;
+          } catch (e) {
+            // Fallback if URL is invalid
+          }
         }
 
         return {

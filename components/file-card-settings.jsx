@@ -67,20 +67,38 @@ export const FileCardSettings = ({
   showTransforms,
   showMultiSize,
 }) => {
+  const { settings } = item;
+
+  const handleDimensionChange = (key, value) => {
+    const val = parseInt(value);
+    if (val > 0) {
+      updateSetting(key, val);
+      updateSetting("scale", 100);
+    } else if (!value) {
+      updateSetting(key, null);
+    }
+  };
+
+  const hasTransforms =
+    (settings.rotation || 0) !== 0 ||
+    settings.flip ||
+    settings.flop ||
+    settings.grayscale;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 px-1 animate-soft origin-top transition-all duration-500 ease-out">
       {/* Left Column Settings - Size & Specs */}
       <div className="space-y-4">
         {showQuality && (
           <div>
-            <SettingLabel extra={`${item.settings.quality}%`}>
+            <SettingLabel extra={`${settings.quality}%`}>
               Quality / CRF
             </SettingLabel>
             <input
               type="range"
               min="10"
               max="100"
-              value={item.settings.quality}
+              value={settings.quality}
               onChange={(e) =>
                 updateSetting("quality", parseInt(e.target.value))
               }
@@ -96,47 +114,29 @@ export const FileCardSettings = ({
               <NumericInput
                 placeholder="Width"
                 unit="PX"
-                value={item.settings.width}
-                onChange={(v) => {
-                  const val = parseInt(v);
-                  if (val > 0) {
-                    updateSetting("width", val);
-                    updateSetting("scale", 100);
-                  } else if (!v) {
-                    updateSetting("width", null);
-                  }
-                }}
+                value={settings.width}
+                onChange={(v) => handleDimensionChange("width", v)}
               />
               <span className="text-black/10">×</span>
               <NumericInput
                 placeholder="Height"
                 unit="PX"
-                value={item.settings.height}
-                onChange={(v) => {
-                  const val = parseInt(v);
-                  if (val > 0) {
-                    updateSetting("height", val);
-                    updateSetting("scale", 100);
-                  } else if (!v) {
-                    updateSetting("height", null);
-                  }
-                }}
+                value={settings.height}
+                onChange={(v) => handleDimensionChange("height", v)}
               />
             </div>
           </div>
         )}
 
-        {showQuality && !item.settings.width && !item.settings.height && (
+        {showQuality && !settings.width && !settings.height && (
           <div>
-            <SettingLabel extra={`${item.settings.scale}%`}>
-              Scaling
-            </SettingLabel>
+            <SettingLabel extra={`${settings.scale}%`}>Scaling</SettingLabel>
             <input
               type="range"
               min="10"
               max="100"
               step="10"
-              value={item.settings.scale}
+              value={settings.scale}
               onChange={(e) => updateSetting("scale", parseInt(e.target.value))}
               className="w-full h-1.5 bg-gray-200 rounded-full appearance-none accent-gray-800 cursor-pointer"
             />
@@ -156,7 +156,7 @@ export const FileCardSettings = ({
               ].map((r) => (
                 <SettingButton
                   key={r.value}
-                  active={item.settings.aspectRatio === r.value}
+                  active={settings.aspectRatio === r.value}
                   onClick={() => updateSetting("aspectRatio", r.value)}
                 >
                   {r.label}
@@ -166,17 +166,16 @@ export const FileCardSettings = ({
           </div>
         )}
 
-        {/* Video/Audio Specifics */}
         {isVideoOutput && (
           <div>
-            <SettingLabel extra={`${item.settings.fps || "Auto"} FPS`}>
+            <SettingLabel extra={`${settings.fps || "Auto"} FPS`}>
               Frame Rate
             </SettingLabel>
             <div className="flex gap-1.5">
               {[null, 24, 30, 60].map((v) => (
                 <SettingButton
                   key={String(v)}
-                  active={item.settings.fps === v}
+                  active={settings.fps === v}
                   onClick={() => updateSetting("fps", v)}
                 >
                   {v || "Auto"}
@@ -188,14 +187,14 @@ export const FileCardSettings = ({
 
         {showAudioSettings && (
           <div>
-            <SettingLabel extra={item.settings.audioBitrate || "192k"}>
+            <SettingLabel extra={settings.audioBitrate || "192k"}>
               Audio Bitrate
             </SettingLabel>
             <div className="flex flex-wrap gap-1.5">
               {["128k", "192k", "256k", "320k"].map((v) => (
                 <SettingButton
                   key={v}
-                  active={item.settings.audioBitrate === v}
+                  active={settings.audioBitrate === v}
                   onClick={() => updateSetting("audioBitrate", v)}
                 >
                   {v}
@@ -207,14 +206,14 @@ export const FileCardSettings = ({
 
         {showVideoToImage && (
           <div>
-            <SettingLabel extra={`${item.settings.frameOffset || 0}s`}>
+            <SettingLabel extra={`${settings.frameOffset || 0}s`}>
               Capture Frame at
             </SettingLabel>
             <NumericInput
               step="0.1"
               unit="SEC"
               placeholder="0.0"
-              value={item.settings.frameOffset}
+              value={settings.frameOffset}
               onChange={(val) =>
                 updateSetting("frameOffset", parseFloat(val) || 0)
               }
@@ -229,10 +228,7 @@ export const FileCardSettings = ({
           <div>
             <div className="flex justify-between items-center mb-1">
               <SettingLabel>Visual Transformations</SettingLabel>
-              {((item.settings.rotation || 0) !== 0 ||
-                item.settings.flip ||
-                item.settings.flop ||
-                item.settings.grayscale) && (
+              {hasTransforms && (
                 <button
                   onClick={() => {
                     updateSettings({
@@ -252,41 +248,37 @@ export const FileCardSettings = ({
             </div>
             <div className="flex gap-1.5">
               <SettingButton
-                active={(item.settings.rotation || 0) !== 0}
+                active={(settings.rotation || 0) !== 0}
                 onClick={() =>
                   updateSetting(
                     "rotation",
-                    ((item.settings.rotation || 0) + 90) % 360,
+                    ((settings.rotation || 0) + 90) % 360,
                   )
                 }
                 title="Rotate 90°"
               >
                 <div className="flex items-center gap-1">
                   <RotateCcw size={14} />
-                  {item.settings.rotation !== 0 && (
-                    <span>{item.settings.rotation}°</span>
-                  )}
+                  {settings.rotation !== 0 && <span>{settings.rotation}°</span>}
                 </div>
               </SettingButton>
               <SettingButton
-                active={item.settings.flip}
-                onClick={() => updateSetting("flip", !item.settings.flip)}
+                active={settings.flip}
+                onClick={() => updateSetting("flip", !settings.flip)}
                 title="Flip Vertical"
               >
                 <FlipVertical size={14} />
               </SettingButton>
               <SettingButton
-                active={item.settings.flop}
-                onClick={() => updateSetting("flop", !item.settings.flop)}
+                active={settings.flop}
+                onClick={() => updateSetting("flop", !settings.flop)}
                 title="Flip Horizontal"
               >
                 <FlipHorizontal size={14} />
               </SettingButton>
               <SettingButton
-                active={item.settings.grayscale}
-                onClick={() =>
-                  updateSetting("grayscale", !item.settings.grayscale)
-                }
+                active={settings.grayscale}
+                onClick={() => updateSetting("grayscale", !settings.grayscale)}
               >
                 B&W
               </SettingButton>
@@ -306,13 +298,11 @@ export const FileCardSettings = ({
                 </span>
               </div>
               <button
-                onClick={() =>
-                  updateSetting("multiSize", !item.settings.multiSize)
-                }
-                className={`w-10 h-6 rounded-full relative transition-all ${item.settings.multiSize ? "bg-gray-800" : "bg-gray-200"}`}
+                onClick={() => updateSetting("multiSize", !settings.multiSize)}
+                className={`w-10 h-6 rounded-full relative transition-all ${settings.multiSize ? "bg-gray-800" : "bg-gray-200"}`}
               >
                 <div
-                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${item.settings.multiSize ? "translate-x-4" : ""}`}
+                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.multiSize ? "translate-x-4" : ""}`}
                 />
               </button>
             </div>
@@ -329,11 +319,11 @@ export const FileCardSettings = ({
                 </span>
               </div>
               <button
-                onClick={() => updateSetting("proMode", !item.settings.proMode)}
-                className={`w-10 h-6 rounded-full relative transition-all ${item.settings.proMode ? "bg-gray-800" : "bg-gray-200"}`}
+                onClick={() => updateSetting("proMode", !settings.proMode)}
+                className={`w-10 h-6 rounded-full relative transition-all ${settings.proMode ? "bg-gray-800" : "bg-gray-200"}`}
               >
                 <div
-                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${item.settings.proMode ? "translate-x-4" : ""}`}
+                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.proMode ? "translate-x-4" : ""}`}
                 />
               </button>
             </div>
@@ -351,12 +341,12 @@ export const FileCardSettings = ({
               </div>
               <button
                 onClick={() =>
-                  updateSetting("stripMetadata", !item.settings.stripMetadata)
+                  updateSetting("stripMetadata", !settings.stripMetadata)
                 }
-                className={`w-10 h-6 rounded-full relative transition-all ${item.settings.stripMetadata ? "bg-gray-800" : "bg-gray-200"}`}
+                className={`w-10 h-6 rounded-full relative transition-all ${settings.stripMetadata ? "bg-gray-800" : "bg-gray-200"}`}
               >
                 <div
-                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${item.settings.stripMetadata ? "translate-x-4" : ""}`}
+                  className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.stripMetadata ? "translate-x-4" : ""}`}
                 />
               </button>
             </div>
