@@ -12,7 +12,7 @@ export const QueueList = ({
   onConvert,
 }) => {
   return (
-    <div className="flex flex-col gap-2 pb-6">
+    <div className="flex flex-col gap-1.5 pb-6">
       {queue.map((item) => (
         <FileCard
           key={item.id}

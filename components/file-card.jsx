@@ -177,21 +177,21 @@ export const FileCard = ({
   return (
     <div
       className={`
-        glass-card rounded-[24px] p-4
+        glass-card rounded-xl p-2.5
         transition-all duration-500 relative overflow-visible
-        ${showFormatDropdown || showSettings ? "z-[50]" : "z-[1]"}
+        ${showFormatDropdown || showSettings ? "z-50" : "z-1"}
         ${item.status === "error" ? "bg-red-50/20" : ""}
         ${item.status === "success" ? "bg-white/40" : ""}
       `}
     >
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-[24px] flex items-center justify-center overflow-hidden bg-white/50 group relative shrink-0">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
+        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl flex items-center justify-center overflow-hidden bg-white/50 group relative shrink-0">
           {renderPreview()}
         </div>
 
-        <div className="flex-grow min-w-0 w-full sm:w-auto">
+        <div className="grow min-w-0 w-full sm:w-auto">
           <div className="flex items-center justify-between mb-1">
-            <div className="flex-grow min-w-0">
+            <div className="grow min-w-0">
               {isEditing ? (
                 <div className="flex items-center gap-2 w-full">
                   <input
@@ -205,7 +205,7 @@ export const FileCard = ({
                         setIsEditing(false);
                       } else if (e.key === "Escape") setIsEditing(false);
                     }}
-                    className="text-xs sm:text-sm bg-white/60 rounded-lg px-2 py-1 outline-none font-medium flex-grow text-gray-800"
+                    className="text-xs sm:text-sm bg-white/60 rounded-lg px-2 py-1 outline-none font-medium grow text-gray-800"
                     autoFocus
                   />
                   <button
@@ -226,7 +226,7 @@ export const FileCard = ({
                     setIsEditing(true);
                   }}
                 >
-                  <p className="text-xs sm:text-sm font-medium text-gray-800 truncate tracking-tight">
+                  <p className="text-[11px] sm:text-xs font-semibold text-gray-800 truncate tracking-tight">
                     {displayName}
                   </p>
                   <PencilLine
@@ -275,18 +275,18 @@ export const FileCard = ({
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 bg-white/40 hover:bg-white/60 rounded-full border border-white/20 transition-all duration-300 group"
                   >
-                    <span className="text-[10px] sm:text-xs font-bold uppercase text-gray-700 tracking-tight">
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase text-gray-700 tracking-tight">
                       {item.format?.replace("to-", "")}
                     </span>
                     <ChevronDown
-                      size={12}
+                      size={10}
                       className={`text-gray-900 transition-transform duration-500 ${showFormatDropdown ? "rotate-180" : "group-hover:translate-y-0.5"}`}
                     />
                   </button>
 
                   {showFormatDropdown && (
                     <div
-                      className={`absolute right-0 min-w-[100px] w-fit bg-white/95 backdrop-blur-3xl border border-white/60 rounded-xl z-[1000] p-1 overflow-hidden whitespace-nowrap shadow-sm shadow-black/5 ${openUpward ? "bottom-full mb-1.5 origin-bottom-right animate-dropdown-up" : "top-full mt-1.5 origin-top-right animate-dropdown"}`}
+                      className={`absolute right-0 min-w-[100px] w-fit bg-white/95 backdrop-blur-3xl border border-white/60 rounded-xl z-1000 p-1 overflow-hidden whitespace-nowrap shadow-sm shadow-black/5 ${openUpward ? "bottom-full mb-1.5 origin-bottom-right animate-dropdown-up" : "top-full mt-1.5 origin-top-right animate-dropdown"}`}
                     >
                       {filteredOptions.length > 0 ? (
                         <div className="flex flex-col gap-0.5">
@@ -301,7 +301,7 @@ export const FileCard = ({
                                   200,
                                 );
                               }}
-                              className={`w-full px-3 py-1.5 text-left rounded-lg transition-all flex items-center justify-between gap-4 group/opt ${item.format === opt.id ? "bg-black/5 text-gray-900" : "text-gray-500 hover:bg-black/[0.03] hover:text-gray-900"}`}
+                              className={`w-full px-3 py-1.5 text-left rounded-lg transition-all flex items-center justify-between gap-4 group/opt ${item.format === opt.id ? "bg-black/5 text-gray-900" : "text-gray-500 hover:bg-black/3 hover:text-gray-900"}`}
                             >
                               <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-tight">
                                 {opt.label}
@@ -352,9 +352,9 @@ export const FileCard = ({
                   {Math.floor(visualProgress)}%
                 </span>
               </div>
-              <div className="h-1 w-full bg-black/[0.03] rounded-full overflow-hidden">
+              <div className="h-1 w-full bg-black/3 rounded-full overflow-hidden">
                 <div
-                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-mascot-orange" : "bg-gradient-to-r from-mascot-yellow to-mascot-orange shadow-[0_0_8px_rgba(255,140,0,0.4)]"}`}
+                  className={`h-full transition-all duration-700 ease-out ${item.status === "success" ? "bg-mascot-orange" : "bg-linear-to-r from-mascot-yellow to-mascot-orange shadow-[0_0_8px_rgba(255,140,0,0.4)]"}`}
                   style={{ width: `${visualProgress}%` }}
                 />
               </div>
@@ -371,10 +371,10 @@ export const FileCard = ({
           )}
         </div>
 
-        <div className="flex flex-row sm:flex-col items-center gap-1.5 sm:gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-between sm:justify-end mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-black/[0.03] sm:border-t-0">
+        <div className="flex flex-row sm:flex-col items-center gap-1.5 sm:gap-2 shrink-0 ml-0 sm:ml-2 w-full sm:w-auto justify-between sm:justify-end mt-3 sm:mt-0 pt-3 sm:pt-0 border-t border-black/3 sm:border-t-0">
           {item.status === "success" ? (
             <>
-              <div className="flex items-center gap-1 bg-white/40 p-1 rounded-full border border-white/30">
+              <div className="flex items-center gap-1 bg-white/40 p-0.5 rounded-full border border-white/30">
                 {isImageOutput && !item.settings.multiSize && (
                   <button
                     onClick={() =>
@@ -383,82 +383,75 @@ export const FileCard = ({
                         converted: getCompareUrl(),
                       })
                     }
-                    className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
+                    className="p-1 px-2 text-gray-800 hover:text-black hover:bg-black/3 rounded-full transition-all"
                     title="View"
                   >
-                    <Eye size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <Eye size={14} />
                   </button>
                 )}
                 <button
                   onClick={() => onFormatChange(item.id, item.format)}
-                  className="p-1.5 sm:p-2 text-gray-800 hover:text-black hover:bg-black/[0.03] rounded-full transition-all"
+                  className="p-1 px-2 text-gray-800 hover:text-black hover:bg-black/3 rounded-full transition-all"
                   title="Restart"
                 >
-                  <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                  <RefreshCw size={14} />
                 </button>
               </div>
               <a
                 href={item.downloadUrl}
                 download={item.outputName || displayName}
-                className="p-2 sm:p-2.5 bg-gray-900 text-white rounded-full transition-all flex items-center justify-center"
+                className="p-1.5 bg-gray-900 text-white rounded-full transition-all flex items-center justify-center"
               >
-                <Download size={14} className="sm:w-[16px] sm:h-[16px]" />
+                <Download size={14} />
               </a>
             </>
           ) : (
             <>
-              <div className="flex items-center gap-1 bg-white/40 p-1 rounded-full border border-white/30">
+              <div className="flex items-center gap-1 bg-white/40 p-0.5 rounded-full border border-white/30">
                 {item.status === "idle" && (
                   <button
                     onClick={() => setShowSettings(!showSettings)}
-                    className={`p-1.5 sm:p-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
+                    className={`p-1 px-2 rounded-full transition-all ${showSettings ? "bg-black/5 text-black" : "text-gray-800 hover:text-black hover:bg-black/5"}`}
                   >
                     <Settings2
-                      size={16}
-                      className={`sm:w-[18px] sm:h-[18px] transition-transform duration-500 ease-out ${showSettings ? "rotate-90" : "rotate-0"}`}
+                      size={14}
+                      className={`transition-transform duration-500 ease-out ${showSettings ? "rotate-90" : "rotate-0"}`}
                     />
                   </button>
                 )}
                 {item.status === "converting" && (
                   <button
                     onClick={() => onCancel(item.id)}
-                    className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
+                    className="p-1 px-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all"
                   >
-                    <Square
-                      size={14}
-                      fill="currentColor"
-                      className="sm:w-[16px] sm:h-[16px]"
-                    />
+                    <Square size={12} fill="currentColor" />
                   </button>
                 )}
                 {item.status === "error" && (
                   <button
                     onClick={() => onConvert(item.id)}
-                    className="p-1.5 sm:p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all"
+                    className="p-1 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-all"
                     title="Retry"
                   >
-                    <RefreshCw size={16} className="sm:w-[18px] sm:h-[18px]" />
+                    <RefreshCw size={14} />
                   </button>
                 )}
                 <button
                   onClick={() => onRemove(item.id)}
-                  className="p-1.5 sm:p-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group/trash"
+                  className="p-1 px-2 text-gray-800 hover:text-red-500 hover:bg-red-50 rounded-full transition-all group/trash"
                 >
-                  <Trash2
-                    size={16}
-                    className="sm:w-[18px] sm:h-[18px] transition-colors"
-                  />
+                  <Trash2 size={14} className="transition-colors" />
                 </button>
               </div>
               {item.status === "idle" && (
                 <button
                   onClick={() => onConvert(item.id)}
-                  className="p-2 sm:p-2.5 bg-mascot-orange hover:bg-mascot-orange/90 text-white rounded-full transition-all active:scale-95 group/play shadow-lg shadow-mascot-orange/20"
+                  className="p-2 bg-mascot-orange hover:bg-mascot-orange/90 text-white rounded-full transition-all active:scale-95 group/play shadow-lg shadow-mascot-orange/20"
                 >
                   <Play
                     size={14}
                     fill="currentColor"
-                    className="sm:w-[16px] sm:h-[16px] group-hover/play:translate-x-0.5 transition-transform"
+                    className="group-hover/play:translate-x-0.5 transition-transform"
                   />
                 </button>
               )}
@@ -468,7 +461,7 @@ export const FileCard = ({
       </div>
 
       {showSettings && item.status === "idle" && (
-        <div className="mt-4 pt-4 border-t border-black/[0.03]">
+        <div className="mt-4 pt-4 border-t border-black/3">
           <FileCardSettings
             item={item}
             updateSetting={updateSetting}

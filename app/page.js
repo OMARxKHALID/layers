@@ -155,11 +155,11 @@ export default function Home() {
   return (
     <div className="h-screen w-screen flex flex-col text-gray-900 overflow-hidden relative selection:bg-black/5">
       {isGlobalDragging && (
-        <div className="fixed inset-0 z-[2000] bg-mascot-orange/15 backdrop-blur-xl m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid border border-mascot-orange/30 shadow-2xl glass-panel">
+        <div className="fixed inset-0 z-2000 bg-mascot-orange/15 backdrop-blur-xl m-6 rounded-[3rem] pointer-events-none flex flex-col items-center justify-center animate-liquid border border-mascot-orange/30 shadow-2xl glass-panel">
           <div className="w-24 h-24 bg-white/70 backdrop-blur-md rounded-full flex items-center justify-center mb-6 border-4 border-mascot-orange/20 shadow-xl shadow-mascot-orange/10 animate-bounce">
             <Plus size={48} className="text-mascot-red" strokeWidth={2.5} />
           </div>
-          <p className="text-2xl md:text-4xl font-bold text-mascot-orange tracking-tight font-[family-name:var(--font-pixelify-sans)] drop-shadow-sm">
+          <p className="text-2xl md:text-4xl font-bold text-mascot-orange tracking-tight font-(family-name:--font-pixelify-sans) drop-shadow-sm">
             Drop to Transform
           </p>
         </div>
@@ -172,8 +172,8 @@ export default function Home() {
         onToggleMode={updateExecutionMode}
       />
 
-      <main className="flex-grow flex flex-col items-center px-4 md:px-6 relative z-10 overflow-hidden pb-6">
-        <div className="w-full max-w-5xl mx-auto flex flex-col items-center flex-grow overflow-hidden">
+      <main className="grow flex flex-col items-center px-4 md:px-6 relative z-10 overflow-hidden pb-4">
+        <div className="w-full max-w-4xl mx-auto flex flex-col items-center grow overflow-hidden">
           {appState === AppState.IDLE ? (
             <HeroSection onFilesSelect={handleFilesSelect} />
           ) : (

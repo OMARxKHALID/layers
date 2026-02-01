@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import JSZip from "jszip";
 
 export function useZipDownload(options = {}) {
   const { zipFileName = "layers_bundle.zip" } = options;
@@ -28,15 +29,18 @@ export function useZipDownload(options = {}) {
       setProgress({ status: "zipping", error: null });
 
       try {
-        const formData = new FormData();
+        const zip = new JSZip();
         const serverItems = [];
+        let hasLocalFiles = false;
 
+        // Process all items
         for (const item of items) {
           if (item.downloadUrl?.startsWith("blob:")) {
             try {
               const res = await fetch(item.downloadUrl);
               const blob = await res.blob();
-              formData.append("files", blob, item.fileName);
+              zip.file(item.fileName, blob);
+              hasLocalFiles = true;
             } catch (e) {
               console.warn("Failed to fetch local blob", item);
             }
@@ -45,28 +49,45 @@ export function useZipDownload(options = {}) {
           }
         }
 
+        let finalBlob;
+
+        // If we have mixed or only server items, we might still need the server
+        // BUT, if we have server items, we should fetch them too to zip locally
+        // OR if many server items, use the server's zip endpoint.
+        // For simplicity and best performance, let's fetch server files and zip locally if possible
+        // to keep the logic consistent and avoid complex hybrid multipart uploads.
+
         if (serverItems.length > 0) {
-          formData.append("serverItems", JSON.stringify(serverItems));
+          await Promise.all(
+            serverItems.map(async (item) => {
+              try {
+                const res = await fetch(item.downloadUrl);
+                if (!res.ok) throw new Error("Server file fetch failed");
+                const blob = await res.blob();
+                zip.file(item.fileName, blob);
+                hasLocalFiles = true;
+              } catch (e) {
+                console.warn(
+                  "Failed to fetch server file for local zipping",
+                  item,
+                );
+              }
+            }),
+          );
         }
 
-        const response = await fetch("/api/download-all", {
-          method: "POST",
-          body: formData,
+        if (!hasLocalFiles && serverItems.length === 0) {
+          throw new Error("No files available for zipping");
+        }
+
+        // Generate zip locally
+        finalBlob = await zip.generateAsync({
+          type: "blob",
+          compression: "DEFLATE",
+          compressionOptions: { level: 6 },
         });
 
-        if (!response.ok) {
-          let errorMsg = "Failed to generate zip";
-          try {
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg;
-          } catch (e) {}
-          throw new Error(errorMsg);
-        }
-
-        const blob = await response.blob();
-        if (blob.size === 0) throw new Error("Received empty archive");
-
-        const blobUrl = URL.createObjectURL(blob);
+        const blobUrl = URL.createObjectURL(finalBlob);
         const link = document.createElement("a");
         link.href = blobUrl;
         link.download = zipFileName;

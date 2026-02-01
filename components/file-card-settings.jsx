@@ -2,7 +2,7 @@ import React from "react";
 import { RotateCcw, FlipVertical, FlipHorizontal } from "lucide-react";
 
 export const SettingLabel = ({ children, extra }) => (
-  <div className="flex justify-between text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2 px-0.5">
+  <div className="flex justify-between text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5 px-0.5">
     <label>{children}</label>
     {extra && (
       <span className="text-mascot-orange font-bold drop-shadow-sm">
@@ -22,7 +22,7 @@ export const SettingButton = ({
   <button
     onClick={onClick}
     title={title}
-    className={`px-2.5 sm:px-3 py-1.5 rounded-lg font-medium border transition-all text-xs ${
+    className={`px-2 py-1 rounded-lg font-bold border transition-all text-[10px] ${
       active
         ? "bg-gray-800 text-white border-transparent"
         : "bg-white/40 text-gray-800 border-white/20"
@@ -40,7 +40,7 @@ export const NumericInput = ({
   step = "1",
   min = "0",
 }) => (
-  <div className="relative flex-grow">
+  <div className="relative grow">
     <input
       type="number"
       step={step}
@@ -48,10 +48,10 @@ export const NumericInput = ({
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full bg-white/55 border border-black/10 rounded-xl pl-3 pr-8 py-1.5 md:py-2 text-xs font-bold focus:bg-white focus:border-mascot-orange/30 outline-none transition-all placeholder:text-gray-400 text-gray-800 shadow-inner"
+      className="w-full bg-white/55 border border-black/10 rounded-lg pl-3 pr-8 py-1.5 text-[11px] font-bold focus:bg-white focus:border-mascot-orange/30 outline-none transition-all placeholder:text-gray-400 text-gray-800 shadow-inner"
     />
     {unit && (
-      <span className="absolute right-3 top-2 md:top-2.5 text-[9px] text-gray-600 font-bold uppercase pointer-events-none">
+      <span className="absolute right-2.5 top-2 text-[8px] text-gray-600 font-bold uppercase pointer-events-none">
         {unit}
       </span>
     )}
@@ -91,8 +91,8 @@ export const FileCardSettings = React.memo(
       settings.grayscale;
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3.5 px-1 animate-soft origin-top transition-all duration-500 ease-out">
-        <div className="space-y-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5 px-1 animate-soft origin-top transition-all duration-500 ease-out">
+        <div className="space-y-2.5">
           {showQuality && (
             <div>
               <SettingLabel extra={`${settings.quality}%`}>
@@ -106,7 +106,7 @@ export const FileCardSettings = React.memo(
                 onChange={(e) =>
                   updateSetting("quality", parseInt(e.target.value))
                 }
-                className="w-full h-1 bg-black/[0.05] rounded-full appearance-none accent-black cursor-pointer"
+                className="w-full h-1 bg-black/5 rounded-full appearance-none accent-black cursor-pointer"
               />
             </div>
           )}
@@ -228,7 +228,7 @@ export const FileCardSettings = React.memo(
           )}
         </div>
 
-        <div className="space-y-3.5">
+        <div className="space-y-2.5">
           {showTransforms && (
             <div>
               <div className="flex justify-between items-center mb-1">
@@ -297,12 +297,12 @@ export const FileCardSettings = React.memo(
 
           <div className="grid grid-cols-1 gap-2">
             {showMultiSize && (
-              <div className="flex items-center justify-between p-3.5 bg-white/50 rounded-2xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
+              <div className="flex items-center justify-between p-2.5 bg-white/50 rounded-xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
                 <div className="flex flex-col">
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-tight">
+                  <label className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">
                     Multi-Size Pack
                   </label>
-                  <span className="text-[10px] text-gray-400 font-medium tracking-wide mt-0.5">
+                  <span className="text-[9px] text-gray-400 font-medium tracking-wide">
                     S / M / L Exports
                   </span>
                 </div>
@@ -310,43 +310,43 @@ export const FileCardSettings = React.memo(
                   onClick={() =>
                     updateSetting("multiSize", !settings.multiSize)
                   }
-                  className={`w-10 h-6 rounded-full relative transition-all ${settings.multiSize ? "bg-gray-800" : "bg-gray-200"}`}
+                  className={`w-8 h-4.5 rounded-full relative transition-all ${settings.multiSize ? "bg-gray-800" : "bg-gray-200"}`}
                 >
                   <div
-                    className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.multiSize ? "translate-x-4" : ""}`}
+                    className={`absolute top-0.5 left-0.5 bg-white w-3.5 h-3.5 rounded-full transition-transform ${settings.multiSize ? "translate-x-3.5" : ""}`}
                   />
                 </button>
               </div>
             )}
 
             {(isVideoOutput || showQuality) && (
-              <div className="flex items-center justify-between p-3.5 bg-white/50 rounded-2xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
+              <div className="flex items-center justify-between p-2.5 bg-white/50 rounded-xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
                 <div className="flex flex-col">
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-tight">
+                  <label className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">
                     Professional Mode
                   </label>
-                  <span className="text-[10px] text-gray-400 font-medium tracking-wide mt-0.5">
+                  <span className="text-[9px] text-gray-400 font-medium tracking-wide">
                     Max Compression (Slower)
                   </span>
                 </div>
                 <button
                   onClick={() => updateSetting("proMode", !settings.proMode)}
-                  className={`w-10 h-6 rounded-full relative transition-all ${settings.proMode ? "bg-gray-800" : "bg-gray-200"}`}
+                  className={`w-8 h-4.5 rounded-full relative transition-all ${settings.proMode ? "bg-gray-800" : "bg-gray-200"}`}
                 >
                   <div
-                    className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.proMode ? "translate-x-4" : ""}`}
+                    className={`absolute top-0.5 left-0.5 bg-white w-3.5 h-3.5 rounded-full transition-transform ${settings.proMode ? "translate-x-3.5" : ""}`}
                   />
                 </button>
               </div>
             )}
 
             {showQuality && !isVideoOutput && (
-              <div className="flex items-center justify-between p-3.5 bg-white/50 rounded-2xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
+              <div className="flex items-center justify-between p-2.5 bg-white/50 rounded-xl border border-white/60 shadow-sm transition-all hover:bg-white/60">
                 <div className="flex flex-col">
-                  <label className="text-xs font-bold text-gray-700 uppercase tracking-tight">
+                  <label className="text-[10px] font-bold text-gray-700 uppercase tracking-tight">
                     Strip Metadata
                   </label>
-                  <span className="text-[10px] text-gray-400 font-medium tracking-wide mt-0.5">
+                  <span className="text-[9px] text-gray-400 font-medium tracking-wide">
                     Remove EXIF / Privacy
                   </span>
                 </div>
@@ -354,10 +354,10 @@ export const FileCardSettings = React.memo(
                   onClick={() =>
                     updateSetting("stripMetadata", !settings.stripMetadata)
                   }
-                  className={`w-10 h-6 rounded-full relative transition-all ${settings.stripMetadata ? "bg-gray-800" : "bg-gray-200"}`}
+                  className={`w-8 h-4.5 rounded-full relative transition-all ${settings.stripMetadata ? "bg-gray-800" : "bg-gray-200"}`}
                 >
                   <div
-                    className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform ${settings.stripMetadata ? "translate-x-4" : ""}`}
+                    className={`absolute top-0.5 left-0.5 bg-white w-3.5 h-3.5 rounded-full transition-transform ${settings.stripMetadata ? "translate-x-3.5" : ""}`}
                   />
                 </button>
               </div>

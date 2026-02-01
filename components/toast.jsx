@@ -10,13 +10,13 @@ export const ToastContainer = ({ toasts }) => {
   );
 
   return (
-    <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[1000] flex flex-col gap-3 pointer-events-none w-full max-w-sm px-4 items-center">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-1000 flex flex-col gap-2 pointer-events-none w-full max-w-sm px-4 items-center">
       {uniqueToasts.map((toast) => (
         <div
           key={toast.id}
           className={`
             pointer-events-auto
-            flex items-center gap-3 px-6 py-3 rounded-full border backdrop-blur-3xl noise
+            flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-3xl noise
             animate-fade-in transition-all duration-500
             ${
               toast.type === "success"
@@ -39,21 +39,21 @@ export const ToastContainer = ({ toasts }) => {
             <CheckCircle
               size={16}
               strokeWidth={3}
-              className="text-green-600 flex-shrink-0"
+              className="text-green-600 shrink-0"
             />
           )}
           {toast.type === "error" && (
             <AlertCircle
               size={16}
               strokeWidth={3}
-              className="text-red-600 flex-shrink-0"
+              className="text-red-600 shrink-0"
             />
           )}
           {toast.type === "info" && (
             <Info
               size={16}
               strokeWidth={3}
-              className="text-blue-600 flex-shrink-0"
+              className="text-blue-600 shrink-0"
             />
           )}
           <span className="text-[12px] font-bold tracking-tight whitespace-nowrap">

@@ -6,7 +6,8 @@ import { ClientConverterFactory } from "@/lib/client-converters";
 import { ExecutionMode } from "@/lib/config";
 
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
-const POLL_INTERVAL_MS = 1000;
+const INITIAL_POLL_INTERVAL_MS = 500;
+const MAX_POLL_INTERVAL_MS = 2000;
 
 export const useConversion = (
   queue,
@@ -20,15 +21,25 @@ export const useConversion = (
   const pollJobStatus = useCallback(
     async (jobId, itemId) => {
       const startTime = Date.now();
-
+      let pollInterval = INITIAL_POLL_INTERVAL_MS;
       while (Date.now() - startTime < POLL_TIMEOUT_MS) {
         try {
           const res = await fetch(`/api/jobs/${jobId}`);
           if (!res.ok) {
-            throw new Error(`Server check failed (${res.status})`);
+            // If server returns error, we might want to retry a few times
+            // incase of transient errors
+            if (res.status >= 500) throw new Error("Server error");
           }
 
           const data = await res.json();
+
+          // Speed up polling if it's processing to get smoother progress
+          if (data.status === "processing") {
+            pollInterval = INITIAL_POLL_INTERVAL_MS;
+          } else {
+            // Slow down polling if it's pending/idle on server
+            pollInterval = Math.min(pollInterval + 500, MAX_POLL_INTERVAL_MS);
+          }
 
           switch (data.status) {
             case "processing":
@@ -49,16 +60,11 @@ export const useConversion = (
               throw new Error(friendlyMsg);
           }
         } catch (e) {
-          if (
-            e.message.includes("check failed") ||
-            e.message.includes("error")
-          ) {
-            throw e;
-          }
-          // For network errors, we can retry silently until timeout
+          // Silent retry for network errors
+          pollInterval = MAX_POLL_INTERVAL_MS;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }
 
       const msg = "Conversion timed out";
@@ -217,7 +223,10 @@ export const useConversion = (
 
     setIsProcessing(true);
 
-    const CONCURRENCY_LIMIT = 2;
+    const cpuCount =
+      typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2;
+    const CONCURRENCY_LIMIT =
+      executionMode === ExecutionMode.CLIENT ? Math.min(cpuCount, 2) : 4;
     const pool = [...itemsToProcess];
 
     const runWorker = async () => {
