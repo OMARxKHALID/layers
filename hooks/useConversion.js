@@ -5,7 +5,7 @@ import { getFriendlyErrorMessage } from "@/utils/error-utils";
 import { ClientConverterFactory } from "@/lib/client-converters";
 import { ExecutionMode } from "@/lib/config";
 
-const POLL_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 1000;
 
 export const useConversion = (
@@ -18,60 +18,52 @@ export const useConversion = (
   const [isProcessing, setIsProcessing] = useState(false);
 
   const pollJobStatus = useCallback(
-    (jobId, itemId) => {
-      return new Promise((resolve, reject) => {
-        const startTime = Date.now();
+    async (jobId, itemId) => {
+      const startTime = Date.now();
 
-        const checkStatus = async () => {
-          if (Date.now() - startTime > POLL_TIMEOUT_MS) {
-            const msg = "Conversion timed out";
-            updateItem(itemId, { status: "error", errorMsg: msg });
-            reject(new Error(msg));
-            return;
+      while (Date.now() - startTime < POLL_TIMEOUT_MS) {
+        try {
+          const res = await fetch(`/api/jobs/${jobId}`);
+          if (!res.ok) {
+            throw new Error(`Server check failed (${res.status})`);
           }
 
-          try {
-            const res = await fetch(`/api/jobs/${jobId}`);
-            if (!res.ok) {
-              const msg = `Server check failed (${res.status})`;
-              updateItem(itemId, { status: "error", errorMsg: msg });
-              reject(new Error(msg));
-              return;
-            }
+          const data = await res.json();
 
-            const data = await res.json();
-
-            switch (data.status) {
-              case "processing":
-                updateItem(itemId, {
-                  progress: Math.max(10, data.progress || 10),
-                });
-                setTimeout(checkStatus, POLL_INTERVAL_MS);
-                break;
-              case "done":
-                resolve(data);
-                break;
-              case "cancelled":
-                updateItem(itemId, { status: "idle", progress: 0 });
-                addToast("Conversion cancelled", "info");
-                resolve(null);
-                break;
-              case "error":
-                const friendlyMsg = getFriendlyErrorMessage(data.error);
-                updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
-                addToast(friendlyMsg, "error");
-                reject(new Error(friendlyMsg));
-                break;
-              default:
-                setTimeout(checkStatus, POLL_INTERVAL_MS);
-            }
-          } catch (e) {
-            reject(e);
+          switch (data.status) {
+            case "processing":
+              updateItem(itemId, {
+                progress: Math.max(10, data.progress || 10),
+              });
+              break;
+            case "done":
+              return data;
+            case "cancelled":
+              updateItem(itemId, { status: "idle", progress: 0 });
+              addToast("Conversion cancelled", "info");
+              return null;
+            case "error":
+              const friendlyMsg = getFriendlyErrorMessage(data.error);
+              updateItem(itemId, { status: "error", errorMsg: friendlyMsg });
+              addToast(friendlyMsg, "error");
+              throw new Error(friendlyMsg);
           }
-        };
+        } catch (e) {
+          if (
+            e.message.includes("check failed") ||
+            e.message.includes("error")
+          ) {
+            throw e;
+          }
+          // For network errors, we can retry silently until timeout
+        }
 
-        checkStatus();
-      });
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      }
+
+      const msg = "Conversion timed out";
+      updateItem(itemId, { status: "error", errorMsg: msg });
+      throw new Error(msg);
     },
     [updateItem, addToast],
   );
@@ -97,10 +89,7 @@ export const useConversion = (
       parts.length > 1 ? parts.slice(0, -1).join(".") : item.customName;
     const newName = `${nameStem}.${result.targetExt}`;
 
-    const blob = await fetch(result.downloadUrl).then((r) => r.blob());
-    const downloadUrl = URL.createObjectURL(
-      new File([blob], newName, { type: blob.type }),
-    );
+    const downloadUrl = result.downloadUrl;
 
     const elapsedTime = ((Date.now() - startTime) / 1000).toFixed(1);
 
@@ -200,7 +189,6 @@ export const useConversion = (
           await processServerConversion(item, startTime, modeLabel);
         }
       } catch (err) {
-        console.error("Conversion failed for", itemId, err);
         const friendlyMsg = getFriendlyErrorMessage(err);
         updateItem(itemId, {
           status: "error",
@@ -225,12 +213,32 @@ export const useConversion = (
     const itemsToProcess = queue.filter(
       (q) => q.status === "idle" || q.status === "error",
     );
-    if (!itemsToProcess.length) return;
+    if (!itemsToProcess.length || isProcessing) return;
 
     setIsProcessing(true);
-    await Promise.all(itemsToProcess.map((item) => handleConvertItem(item.id)));
+
+    const CONCURRENCY_LIMIT = 2;
+    const pool = [...itemsToProcess];
+
+    const runWorker = async () => {
+      while (pool.length > 0) {
+        const item = pool.shift();
+        if (!item) continue;
+        try {
+          await handleConvertItem(item.id);
+        } catch (e) {
+          console.error(`Batch item ${item.id} failed:`, e);
+        }
+      }
+    };
+
+    const workers = Array(Math.min(CONCURRENCY_LIMIT, pool.length))
+      .fill(null)
+      .map(runWorker);
+
+    await Promise.all(workers);
     setIsProcessing(false);
-  }, [queue, handleConvertItem]);
+  }, [queue, handleConvertItem, isProcessing]);
 
   const handleCancelItem = useCallback(
     async (itemId) => {
@@ -240,9 +248,7 @@ export const useConversion = (
       if (executionMode === ExecutionMode.SERVER && item?.jobId) {
         try {
           await fetch(`/api/jobs/${item.jobId}/cancel`, { method: "POST" });
-        } catch (e) {
-          // Ignore
-        }
+        } catch (e) {}
       }
       addToast("Conversion cancelled", "info");
     },

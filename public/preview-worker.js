@@ -24,7 +24,7 @@ self.onmessage = async (e) => {
       quality: 0.7,
     });
 
-    self.postMessage({ id, blob }, [blob]);
+    self.postMessage({ id, blob });
     bitmap.close();
   } catch (err) {
     console.error("Worker preview error:", err);

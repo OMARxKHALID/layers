@@ -3,7 +3,6 @@ export function getFriendlyErrorMessage(error) {
 
   const msg = typeof error === "string" ? error : error.message || "";
 
-  // FFmpeg specific errors
   if (
     msg.includes("ffmpeg exited with code") ||
     msg.includes("Invalid argument")
@@ -17,16 +16,13 @@ export function getFriendlyErrorMessage(error) {
     return "Conversion failed. Please try a different output format or check your settings.";
   }
 
-  // File system / Permission errors
   if (msg.includes("ENOENT") || msg.includes("no such file")) {
     return "File not found. It may have been moved or deleted during processing.";
   }
 
-  // Upload/Network errors
   if (msg.includes("Upload failed") || msg.includes("fetch")) {
     return "Connection lost. Please check your internet and try again.";
   }
 
-  // Default fallback
   return "Something went wrong during conversion. Please try again.";
 }

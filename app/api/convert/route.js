@@ -4,6 +4,7 @@ import { createWriteStream } from "fs";
 import { join, extname, basename } from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
+import { unlink } from "fs/promises";
 import { fileTypeFromStream } from "file-type";
 import {
   ensureDirs,
@@ -83,24 +84,6 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     }
 
-    const sanitizedFileName = sanitizeFilename(file.name);
-    const fileExt = extname(sanitizedFileName).toLowerCase().replace(".", "");
-    const expectedMime = MIME_TYPE_MAP[fileExt];
-
-    if (!expectedMime || (file.type && file.type !== expectedMime)) {
-      return NextResponse.json(
-        { error: "Invalid file type or extension" },
-        { status: 400 },
-      );
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return NextResponse.json(
-        { error: `File too large (Max ${MAX_FILE_SIZE_MB}MB)` },
-        { status: 400 },
-      );
-    }
-
     const typeConfig = CONVERSION_OPTIONS.find(
       (opt) => opt.id === conversionType,
     );
@@ -119,59 +102,77 @@ export async function POST(request) {
       return NextResponse.json({ error: "Invalid settings" }, { status: 400 });
     }
 
+    const sanitizedFileName = sanitizeFilename(file.name);
+    const fileExt = extname(sanitizedFileName).toLowerCase().replace(".", "");
+    const expectedMime = MIME_TYPE_MAP[fileExt];
+
+    if (!expectedMime || (file.type && file.type !== expectedMime)) {
+      return NextResponse.json(
+        { error: "Invalid file type or extension" },
+        { status: 400 },
+      );
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      return NextResponse.json(
+        { error: `File too large (Max ${MAX_FILE_SIZE_MB}MB)` },
+        { status: 400 },
+      );
+    }
+
     const jobId = randomUUID();
     const targetExt = conversionType.replace("to-", "");
     const inputPath = join(UPLOAD_DIR, `${jobId}_${sanitizedFileName}`);
     const outputPath = join(OUTPUT_DIR, `${jobId}.${targetExt}`);
 
-    const [streamForValidation, streamForSave] = file.stream().tee();
-    const detectedType = await fileTypeFromStream(streamForValidation);
-
-    if (detectedType && expectedMime !== detectedType.mime) {
-      const isSvgMismach =
-        fileExt === "svg" && detectedType.mime.includes("xml");
-      const isM4aMismatch =
-        detectedType.mime.includes("video/mp4") && fileExt === "m4a";
-
-      if (!isSvgMismach && !isM4aMismatch) {
-        return NextResponse.json(
-          { error: "Security check failed: MIME mismatch" },
-          { status: 400 },
-        );
-      }
-    }
-
+    let isQueued = false;
     try {
+      const [streamForValidation, streamForSave] = file.stream().tee();
+      const detectedType = await fileTypeFromStream(streamForValidation);
+
+      if (detectedType && expectedMime !== detectedType.mime) {
+        const isSvgMismach =
+          fileExt === "svg" && detectedType.mime.includes("xml");
+        const isM4aMismatch =
+          detectedType.mime.includes("video/mp4") && fileExt === "m4a";
+
+        if (!isSvgMismach && !isM4aMismatch) {
+          throw new Error("Security check failed: MIME mismatch");
+        }
+      }
+
       await pipeline(
         Readable.fromWeb(streamForSave),
         createWriteStream(inputPath),
       );
+
+      const job = {
+        id: jobId,
+        status: "pending",
+        progress: 0,
+        inputFile: inputPath,
+        outputFile: outputPath,
+        targetExt,
+        createdAt: Date.now(),
+      };
+
+      await saveJob(job);
+      processJob(job, settings);
+      isQueued = true;
+
+      return NextResponse.json({ jobId });
     } catch (e) {
-      return NextResponse.json(
-        { error: "Failed to save file" },
-        { status: 500 },
-      );
+      if (inputPath && !isQueued) {
+        await unlink(inputPath).catch(() => {});
+      }
+      throw e;
     }
-
-    const job = {
-      id: jobId,
-      status: "pending",
-      progress: 0,
-      inputFile: inputPath,
-      outputFile: outputPath,
-      targetExt,
-      createdAt: Date.now(),
-    };
-
-    await saveJob(job);
-    processJob(job, settings);
-
-    return NextResponse.json({ jobId });
   } catch (error) {
     console.error("API Error:", error);
+    const status = error.message.includes("Security check") ? 400 : 500;
     return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
+      { error: error.message || "Internal Server Error" },
+      { status },
     );
   }
 }

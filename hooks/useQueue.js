@@ -44,7 +44,9 @@ export const useQueue = (addToast) => {
       format: targetExt,
       date: new Date().toLocaleDateString(),
       size: item.file.size,
-      downloadUrl: item.downloadUrl,
+      downloadUrl: item.downloadUrl?.startsWith("blob:")
+        ? null
+        : item.downloadUrl,
     };
 
     setHistory((prev) => {
@@ -77,9 +79,7 @@ export const useQueue = (addToast) => {
             const url = new URL(item.downloadUrl, window.location.origin);
             url.searchParams.set("filename", updates.customName);
             updates.downloadUrl = url.pathname + url.search;
-          } catch (e) {
-            // Fallback if URL is invalid
-          }
+          } catch (e) {}
         }
 
         return {
@@ -102,6 +102,9 @@ export const useQueue = (addToast) => {
         const updated = prev.filter((item) => item.id !== id);
         if (updated.length === 0) setAppState(AppState.IDLE);
         if (itemToRemove) {
+          if (itemToRemove.downloadUrl?.startsWith("blob:")) {
+            URL.revokeObjectURL(itemToRemove.downloadUrl);
+          }
           addToast(
             `Removed ${itemToRemove.customName || itemToRemove.file.name}`,
           );
@@ -113,9 +116,14 @@ export const useQueue = (addToast) => {
   );
 
   const resetQueue = useCallback(() => {
+    queue.forEach((item) => {
+      if (item.downloadUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(item.downloadUrl);
+      }
+    });
     setQueue([]);
     setAppState(AppState.IDLE);
-  }, []);
+  }, [queue]);
 
   const clearHistory = useCallback(() => {
     setHistory([]);

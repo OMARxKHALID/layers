@@ -59,9 +59,7 @@ export function useZipDownload(options = {}) {
           try {
             const errorData = await response.json();
             errorMsg = errorData.error || errorMsg;
-          } catch (e) {
-            /* ignore non-json */
-          }
+          } catch (e) {}
           throw new Error(errorMsg);
         }
 
